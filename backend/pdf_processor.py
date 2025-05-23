@@ -71,7 +71,7 @@ class PDFProcessor:
 
     def _extract_text(self, filepath: str) -> tuple:
         if not pdfplumber:
-            return self._extract_with_ocr(filepath), 0, "OCR"
+            return "", 0, "pdfplumber not available"
 
         try:
             with pdfplumber.open(filepath) as pdf:
@@ -86,36 +86,10 @@ class PDFProcessor:
                 if text_parts:
                     return "\n".join(text_parts), total_pages, "pdfplumber"
                 else:
-                    return self._extract_with_ocr(filepath), total_pages, "OCR"
+                    return "", total_pages, "No text found in PDF"
 
-        except Exception:
-            return self._extract_with_ocr(filepath), 0, "OCR"
-
-    def _extract_with_ocr(self, filepath: str) -> str:
-        if not pytesseract or not Image:
-            return ""
-
-        try:
-            try:
-                import fitz
-            except ImportError:
-                return ""
-            doc = fitz.open(filepath)
-            text_parts = []
-
-            for page_num in range(len(doc)):
-                page = doc.load_page(page_num)
-                pix = page.get_pixmap()
-                img_data = pix.tobytes("ppm")
-
-                img = Image.open(io.BytesIO(img_data))
-                text = pytesseract.image_to_string(img)
-                text_parts.append(text)
-
-            return "\n".join(text_parts)
-
-        except Exception:
-            return ""
+        except Exception as e:
+            return "", 0, f"Extraction failed: {str(e)}"
 
     def _clean_text(self, text: str) -> str:
         text = re.sub(r"Page \d+.*?\n", "", text, flags=re.IGNORECASE)
