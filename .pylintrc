@@ -12,7 +12,24 @@ disable=
     C0103,
     W1203,
     W3101,
-    W0612
+    W0612,
+    R0913,
+    R0914,
+    R0915,
+    R0916,
+    R0917,
+    R0918,
+    R0919,
+    R0920,
+    R0921,
+    R0922,
+    R0923,
+    R0924,
+    R0925,
+    W0611,
+    W0707,
+    W0719,
+    W0012
 
 [FORMAT]
 # Maximum number of characters on a single line

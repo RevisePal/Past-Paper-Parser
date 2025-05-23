@@ -1,6 +1,5 @@
 import re
 import json
-import io
 import os
 from typing import List, Dict, Any
 from pydantic import BaseModel, ValidationError
@@ -12,7 +11,6 @@ except ImportError:
     pdfplumber = None
 
 try:
-    import pytesseract
     from PIL import Image
 except ImportError:
     pytesseract = None
