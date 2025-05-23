@@ -21,12 +21,16 @@ const FileUpload = ({ onFileProcessed, onError, onLoadingChange }) => {
       formData.append("file", file);
 
       try {
-        const response = await axios.post("/api/process-pdf", formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-          timeout: 300000,
-        });
+        const response = await axios.post(
+          "http://localhost:5000/api/process-pdf",
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+            timeout: 300000,
+          }
+        );
 
         onFileProcessed(response.data);
       } catch (error) {
