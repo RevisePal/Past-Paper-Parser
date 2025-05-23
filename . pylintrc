@@ -1,0 +1,36 @@
+[MASTER]
+# Add any Python module names here where you want to disable all warnings.
+ignore=CVS
+
+[MESSAGES CONTROL]
+# Disable specific warnings
+disable=
+    C0116, # missing-function-docstring
+    C0115, # missing-class-docstring
+    C0114, # missing-module-docstring
+    W0718,
+    C0103,
+    W1203,
+    W3101,
+    W0612
+
+[FORMAT]
+# Maximum number of characters on a single line
+max-line-length=200
+
+[BASIC]
+# Regular expression which should only match function or class names
+function-rgx=[a-z_][a-z0-9_]{2,50}$
+variable-rgx=[a-z_][a-z0-9_]{2,50}$
+
+[SIMILARITIES]
+# Minimum lines number of a similarity
+min-similarity-lines=4
+
+[TYPECHECK]
+# List of module names for which member attributes should not be checked
+ignored-modules=numpy,tensorflow,torch,cv2
+
+[MISCELLANEOUS]
+# List of note tags to take into consideration
+notes=FIXME,XXX,TODO 
