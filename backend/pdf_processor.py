@@ -136,6 +136,7 @@ class PDFProcessor:
         Extract each question into JSON format with these fields:
         - question_number: The question number (e.g., "1", "2a", "3.1")
         - question: The full question text
+        - image: The image of the question (if any else show N/A)
         - options: Array of multiple choice options (if any)
         - correct_answer: The correct answer (if provided)
         - marks: Point value or marks (if mentioned)

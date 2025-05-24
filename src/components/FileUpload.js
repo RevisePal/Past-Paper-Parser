@@ -22,7 +22,7 @@ const FileUpload = ({ onFileProcessed, onError, onLoadingChange }) => {
 
       try {
         const response = await axios.post(
-          "http://localhost:5000/api/process-pdf",
+          'http://127.0.0.1:5000/api/process-pdf',
           formData,
           {
             headers: {
