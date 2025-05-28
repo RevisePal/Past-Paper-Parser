@@ -2,6 +2,16 @@ import re
 import fitz  # PyMuPDF for better PDF text extraction
 from typing import List, Dict
 from pydantic import BaseModel, ValidationError
+import json
+import openai
+import os
+import logging
+from openai import OpenAI
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 class Question(BaseModel):
@@ -13,38 +23,83 @@ class Question(BaseModel):
 
 
 class PDFProcessor:
-    def process_pdf(self, filepath: str) -> Dict:
+    def __init__(self):
+        logger.info("Initializing PDFProcessor...")
         try:
-            raw_text, total_pages = self._extract_text(filepath)
-            cleaned_text = self._clean_text(raw_text)
-            question_chunks = self._segment_questions(cleaned_text)
-            questions = self._structure_without_llm(question_chunks)
-            validated_questions = self._validate_questions(questions)
+            self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            logger.info("OpenAI client initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize OpenAI client: {e}")
+            raise
 
-            return {
+    def process_pdf(self, filepath: str) -> Dict:
+        logger.info(f"Starting PDF processing for: {filepath}")
+        try:
+            logger.info("Step 1: Extracting text from PDF...")
+            raw_text, total_pages = self._extract_text(filepath)
+            logger.info(
+                f"✓ Text extracted successfully. Pages: {total_pages}, Characters: {len(raw_text)}"
+            )
+
+            logger.info("Step 2: Cleaning extracted text...")
+            cleaned_text = self._clean_text(raw_text)
+            logger.info(
+                f"✓ Text cleaned. Characters after cleaning: {len(cleaned_text)}"
+            )
+
+            logger.info("Step 3: Segmenting into question chunks...")
+            question_chunks = self._segment_questions(cleaned_text)
+            logger.info(f"✓ Found {len(question_chunks)} question chunks")
+
+            logger.info("Step 4: Processing questions with AI...")
+            questions = self._structure_with_ai(question_chunks)
+            logger.info(f"✓ Processed {len(questions)} questions")
+
+            logger.info("Step 5: Validating question data...")
+            validated_questions = self._validate_questions(questions)
+            logger.info(f"✓ Validated {len(validated_questions)} questions")
+
+            result = {
                 "questions": validated_questions,
                 "metadata": {
                     "total_pages": total_pages,
                     "total_questions": len(validated_questions),
                 },
             }
+
+            logger.info("✅ PDF processing completed successfully!")
+            return result
+
         except Exception as e:
+            logger.error(f"❌ PDF processing failed: {str(e)}")
             raise Exception(f"PDF processing failed: {str(e)}")
 
     def _extract_text(self, filepath: str) -> tuple:
+        logger.info(f"Opening PDF file: {filepath}")
         doc = fitz.open(filepath)
+        total_pages = len(doc)
+        logger.info(f"PDF opened successfully. Total pages: {total_pages}")
+
         full_text = ""
-        for page in doc:
-            full_text += page.get_text()
-        return full_text, len(doc)
+        for page_num, page in enumerate(doc, 1):
+            page_text = page.get_text()
+            full_text += page_text
+            logger.debug(
+                f"Extracted text from page {page_num}: {len(page_text)} characters"
+            )
+
+        logger.info(f"Text extraction complete. Total characters: {len(full_text)}")
+        doc.close()
+        logger.debug("PDF document closed")
+
+        return full_text, total_pages
 
     def _clean_text(self, text: str) -> str:
-        text = re.sub(r"Tick\s*\([✓✔]?\)\s*one box", "[TICK_ONE_BOX]", text, flags=re.IGNORECASE)
-        text = re.sub(r"Tick\s*\([✓✔]?\)\s*two boxes", "[TICK_TWO_BOXES]", text, flags=re.IGNORECASE)
-        text = re.sub(r"[✅✓✔✗□■▪•◦]", "", text)
+        logger.info("Starting text cleaning process...")
+        original_length = len(text)
+
         text = text.replace("\u00a0", " ")
-        text = re.sub(r"\[\s*\d+\s*mark[s]?\s*\]", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"\(\)", "", text)
+        logger.debug("Replaced non-breaking spaces")
 
         patterns_to_remove = [
             r"do\s*not\s*write\s*out\s*side\s*the\s*box",
@@ -60,85 +115,176 @@ class PDFProcessor:
             r"►\s*/\w+/\w+",
             r"►\s*/\w+/\w+/\w+",
         ]
-        for pattern in patterns_to_remove:
+
+        for i, pattern in enumerate(patterns_to_remove, 1):
+            before_length = len(text)
             text = re.sub(pattern, "", text, flags=re.IGNORECASE)
+            removed = before_length - len(text)
+            if removed > 0:
+                logger.debug(f"Pattern {i}: Removed {removed} characters")
 
         text = re.sub(r"\n\s*\d+\s*\n", "\n", text)
         text = re.sub(r"\n{2,}", "\n", text)
         text = re.sub(r"[ ]{2,}", " ", text)
+        text = text.strip()
 
-        return text.strip()
+        cleaned_length = len(text)
+        logger.info(
+            f"Text cleaning complete. Reduced from {original_length} to {cleaned_length} characters ({original_length - cleaned_length} removed)"
+        )
+        return text
 
     def _segment_questions(self, text: str) -> List[str]:
+        logger.info("Segmenting text into question chunks...")
         question_pattern = r"(0\s*\d\s*\.\s*\d[\s\S]*?)(?=\n\s*0\s*\d\s*\.\s*\d|\Z)"
-        return re.findall(question_pattern, text)
+        chunks = re.findall(question_pattern, text)
 
-    def _structure_without_llm(self, chunks: List[str]) -> List[Dict]:
-        def is_figure_or_diagram_line(line: str) -> bool:
-            # Exclude lines like 'Figure 2', lines with only symbols, or very short lines
-            if re.match(r"^Figure\\s*\\d+", line, re.IGNORECASE):
-                return True
-            if re.match(r"^[+\-|=~_]+$", line.strip()):
-                return True
-            if re.match(r"^\s*$", line):
-                return True
-            if len(line.strip()) < 2 and not line.strip().isalnum():
-                return True
-            return False
+        logger.info(f"Found {len(chunks)} question chunks using regex pattern")
+        for i, chunk in enumerate(chunks, 1):
+            preview = chunk[:100].replace("\n", " ")
+            logger.debug(f"Chunk {i}: {preview}...")
 
+        return chunks
+
+    def _structure_with_ai(self, chunks: List[str]) -> List[Dict]:
+        logger.info(f"Processing {len(chunks)} chunks with AI...")
         questions = []
-        for chunk in chunks:
-            lines = [line.strip() for line in chunk.strip().splitlines() if line.strip()]
-            if not lines:
-                continue
+        ai_success_count = 0
+        fallback_count = 0
 
-            tick_marker_idx = None
-            tick_type = None
-            for idx, line in enumerate(lines):
-                if "[TICK_ONE_BOX]" in line or "[TICK_TWO_BOXES]" in line:
-                    tick_marker_idx = idx
-                    tick_type = "Multiple Choice"
-                    break
+        for i, chunk in enumerate(chunks, 1):
+            logger.info(f"Processing question {i}/{len(chunks)}...")
 
-            if tick_marker_idx is not None:
-                # Question is everything before the marker (excluding question number and figure/diagram lines)
-                question_lines = [l for l in lines[1:tick_marker_idx] if not is_figure_or_diagram_line(l)]
-                # Options are everything after the marker
-                options = [l for l in lines[tick_marker_idx+1:] if l]
-            else:
-                question_lines = [l for l in lines[1:] if not is_figure_or_diagram_line(l)]
-                options = []
+            try:
+                logger.debug(f"Sending chunk {i} to OpenAI API...")
 
-            question_text = " ".join(question_lines).strip()
+                prompt = f"""
+Analyze this exam question text and extract the information. Be very careful to:
+1. Clean the question text (remove question numbers like "01.1", figure references)
+2. Identify if it's Multiple Choice (has options to choose from) or Short Answer
+3. Extract individual options if it's multiple choice
+4. Find marks if mentioned (like "[2 marks]" or "2 marks")
 
-            marks_match = re.search(r"\[(\d+) mark", question_text)
-            marks = marks_match.group(1) if marks_match else ""
+Text: {chunk}
 
-            question_type = tick_type if tick_type else ("Multiple Choice" if options else "Short Answer")
+Return ONLY valid JSON in this exact format:
+{{
+    "question": "clean question text without numbers or figure refs",
+    "type": "Multiple Choice" or "Short Answer",
+    "options": ["option1", "option2", "option3"] or [],
+    "marks": "2" or ""
+}}
+"""
 
-            questions.append({
-                "question": question_text,
-                "options": options,
-                "correct_answer": "",
-                "marks": marks,
-                "type": question_type,
-            })
+                response = self.client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0,
+                    max_tokens=500,
+                )
 
+                logger.debug(f"Received response from OpenAI for question {i}")
+
+                result = json.loads(response.choices[0].message.content)
+
+                question_data = {
+                    "question": result.get("question", "").strip(),
+                    "options": result.get("options", []),
+                    "correct_answer": "",
+                    "marks": result.get("marks", ""),
+                    "type": result.get("type", "Short Answer"),
+                }
+
+                questions.append(question_data)
+                ai_success_count += 1
+
+                logger.info(f"✓ Question {i} processed successfully with AI")
+                logger.debug(f"  Type: {question_data['type']}")
+                logger.debug(f"  Options: {len(question_data['options'])}")
+                logger.debug(f"  Marks: {question_data['marks']}")
+
+            except Exception as e:
+                logger.warning(f"⚠️ AI parsing failed for question {i}: {e}")
+                logger.info(f"Using fallback parsing for question {i}...")
+
+                fallback_result = self._fallback_parsing(chunk)
+                questions.append(fallback_result)
+                fallback_count += 1
+
+                logger.info(f"✓ Question {i} processed with fallback method")
+
+        logger.info(
+            f"AI processing complete: {ai_success_count} AI successes, {fallback_count} fallbacks"
+        )
         return questions
 
+    def _fallback_parsing(self, chunk: str) -> Dict:
+        logger.debug("Using fallback parsing method...")
+
+        lines = [line.strip() for line in chunk.strip().splitlines() if line.strip()]
+        if not lines:
+            logger.debug("Empty chunk, returning default question")
+            return {
+                "question": "",
+                "options": [],
+                "correct_answer": "",
+                "marks": "",
+                "type": "Short Answer",
+            }
+
+        full_text = " ".join(lines)
+
+        question_words = full_text.split()
+        if question_words and re.match(r"^\d+\.?\s*\d*\.?$", question_words[0]):
+            question_words = question_words[1:]
+
+        question_text = " ".join(question_words).strip()
+
+        marks_match = re.search(r"\[(\d+)\s*marks?\]", question_text, re.IGNORECASE)
+        marks = marks_match.group(1) if marks_match else ""
+
+        if any(phrase in full_text.lower() for phrase in ["tick", "choose", "select"]):
+            question_type = "Multiple Choice"
+        else:
+            question_type = "Short Answer"
+
+        logger.debug(f"Fallback result: Type={question_type}, Marks={marks}")
+
+        return {
+            "question": question_text,
+            "options": [],
+            "correct_answer": "",
+            "marks": marks,
+            "type": question_type,
+        }
+
     def _validate_questions(self, questions: List[Dict]) -> List[Dict]:
+        logger.info(f"Validating {len(questions)} questions...")
         validated = []
-        for q_data in questions:
+        validation_errors = 0
+
+        for i, q_data in enumerate(questions, 1):
             try:
                 question = Question(**q_data)
                 validated.append(question.dict())
-            except ValidationError:
+                logger.debug(f"Question {i} validation: ✓")
+            except ValidationError as e:
+                validation_errors += 1
+                logger.warning(f"Question {i} validation failed: {e}")
+
                 if q_data.get("question"):
-                    validated.append({
-                        "question": q_data.get("question", ""),
-                        "options": q_data.get("options", []),
-                        "correct_answer": q_data.get("correct_answer", ""),
-                        "marks": q_data.get("marks", ""),
-                        "type": q_data.get("type", "Unknown"),
-                    })
+                    validated.append(
+                        {
+                            "question": q_data.get("question", ""),
+                            "options": q_data.get("options", []),
+                            "correct_answer": q_data.get("correct_answer", ""),
+                            "marks": q_data.get("marks", ""),
+                            "type": q_data.get("type", "Unknown"),
+                        }
+                    )
+                    logger.debug(f"Question {i} added with fallback validation")
+
+        logger.info(
+            f"Validation complete: {len(validated)} questions validated, {validation_errors} validation errors"
+        )
         return validated

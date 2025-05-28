@@ -3,7 +3,10 @@ import time
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
 from pdf_processor import PDFProcessor
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
