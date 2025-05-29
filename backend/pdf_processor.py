@@ -81,7 +81,8 @@ class PDFProcessor:
         logger.info(f"PDF opened successfully. Total pages: {total_pages}")
 
         full_text = ""
-        for page_num, page in enumerate(doc, 1):
+        for page_num in range(1, 5):
+            page = doc[page_num]
             page_text = page.get_text()
             full_text += page_text
             logger.debug(
@@ -136,7 +137,7 @@ class PDFProcessor:
 
     def _segment_questions(self, text: str) -> List[str]:
         logger.info("Segmenting text into question chunks...")
-        question_pattern = r"(0\s*\d\s*\.\s*\d[\s\S]*?)(?=\n\s*0\s*\d\s*\.\s*\d|\Z)"
+        question_pattern = r"(0\s*\d(?:\.\d)?[\s\S]*?)(?=\n\s*0\s*\d(?:\.\d)?|\Z)"
         chunks = re.findall(question_pattern, text)
 
         logger.info(f"Found {len(chunks)} question chunks using regex pattern")
@@ -160,10 +161,10 @@ class PDFProcessor:
 
                 prompt = f"""
 Analyze this exam question text and extract the information. Be very careful to:
-1. Clean the question text (remove question numbers like "01.1", figure references)
-2. Identify if it's Multiple Choice (has options to choose from) or Short Answer
-3. Extract individual options if it's multiple choice
-4. Find marks if mentioned (like "[2 marks]" or "2 marks")
+1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question
+2. Clean the question text (remove question numbers like "01.1", figure references)
+3. Identify if it's Multiple Choice (has options to choose from) or Short Answer
+4. Extract individual options if it's multiple choice
 
 Text: {chunk}
 
@@ -172,7 +173,6 @@ Return ONLY valid JSON in this exact format:
     "question": "clean question text without numbers or figure refs",
     "type": "Multiple Choice" or "Short Answer",
     "options": ["option1", "option2", "option3"] or [],
-    "marks": "2" or ""
 }}
 """
 

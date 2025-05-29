@@ -1,9 +1,7 @@
-import React, { useState } from "react";
+import React from "react";
 import "./ResultsDisplay.css";
 
 const ResultsDisplay = ({ results, onReset }) => {
-  const [selectedQuestion, setSelectedQuestion] = useState(null);
-
   const downloadJSON = () => {
     const dataStr = JSON.stringify(results, null, 2);
     const dataUri =
@@ -42,15 +40,9 @@ const ResultsDisplay = ({ results, onReset }) => {
         </div>
       </div>
 
-      <div className="questions-grid">
+      <div className="questions-list">
         {results.questions.map((question, index) => (
-          <div
-            key={index}
-            className="question-card"
-            onClick={() =>
-              setSelectedQuestion(selectedQuestion === index ? null : index)
-            }
-          >
+          <div key={index} className="question-card">
             <div className="question-header">
               <h3>Question {question.question_number || index + 1}</h3>
               <span className="question-type">
@@ -58,53 +50,42 @@ const ResultsDisplay = ({ results, onReset }) => {
               </span>
             </div>
 
-            <div className="question-preview">
-              {question.question && question.question.length > 100
-                ? `${question.question.substring(0, 100)}...`
-                : question.question || "No question text found"}
+            <div className="question-text">
+              <p>{question.question || "No question text found"}</p>
             </div>
 
-            {selectedQuestion === index && (
-              <div className="question-details">
-                <div className="question-text">
-                  <h4>Question:</h4>
-                  <p>{question.question}</p>
-                </div>
+            {question.options && question.options.length > 0 && (
+              <div className="question-options">
+                <h4>Options:</h4>
+                <ul>
+                  {question.options.map((option, optIndex) => (
+                    <li
+                      key={optIndex}
+                      className={
+                        option === question.correct_answer
+                          ? "correct-answer"
+                          : ""
+                      }
+                    >
+                      {option}
+                      {option === question.correct_answer && " ✓"}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-                {question.options && question.options.length > 0 && (
-                  <div className="question-options">
-                    <h4>Options:</h4>
-                    <ul>
-                      {question.options.map((option, optIndex) => (
-                        <li
-                          key={optIndex}
-                          className={
-                            option === question.correct_answer
-                              ? "correct-answer"
-                              : ""
-                          }
-                        >
-                          {option}
-                          {option === question.correct_answer && " ✓"}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+            {question.correct_answer && (
+              <div className="correct-answer-section">
+                <h4>Correct Answer:</h4>
+                <p className="answer">{question.correct_answer}</p>
+              </div>
+            )}
 
-                {question.correct_answer && (
-                  <div className="correct-answer-section">
-                    <h4>Correct Answer:</h4>
-                    <p className="answer">{question.correct_answer}</p>
-                  </div>
-                )}
-
-                {question.marks && (
-                  <div className="marks-section">
-                    <h4>Marks:</h4>
-                    <p>{question.marks}</p>
-                  </div>
-                )}
+            {question.marks && (
+              <div className="marks-section">
+                <h4>Marks:</h4>
+                <p>{question.marks}</p>
               </div>
             )}
           </div>
