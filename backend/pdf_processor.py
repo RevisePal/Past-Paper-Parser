@@ -9,7 +9,12 @@ import logging
 from openai import OpenAI
 
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.DEBUG,  # <- this is the fix
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("pdf_processor.log"),
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger(__name__)
 
@@ -81,7 +86,7 @@ class PDFProcessor:
         logger.info(f"PDF opened successfully. Total pages: {total_pages}")
 
         full_text = ""
-        for page_num in range(1, 5):
+        for page_num in range(1, 13):
             page = doc[page_num]
             page_text = page.get_text()
             full_text += page_text
@@ -100,6 +105,7 @@ class PDFProcessor:
         original_length = len(text)
 
         text = text.replace("\u00a0", " ")
+        text = re.sub(r'[✓]|\(\)', '', text)
         logger.debug("Replaced non-breaking spaces")
 
         patterns_to_remove = [
@@ -135,17 +141,61 @@ class PDFProcessor:
         )
         return text
 
-    def _segment_questions(self, text: str) -> List[str]:
+    def _segment_questions(self, text: str) -> List[Dict]:
         logger.info("Segmenting text into question chunks...")
-        question_pattern = r"(0\s*\d(?:\.\d)?[\s\S]*?)(?=\n\s*0\s*\d(?:\.\d)?|\Z)"
+
+        # Normalize question numbers with flexible spacing:
+        # 0 2 . 1  → 02.1
+        text = re.sub(r"0\s*(\d)\s*\.\s*(\d)", r"0\1.\2", text)
+
+        # Normalize base questions without trailing .x (avoid touching already normalized .x)
+        text = re.sub(r"\b0\s*(\d)(?!\.\d)\b", r"0\1", text)
+
+        # Extract all question chunks (includes 01, 01.1, 01.2 etc)
+        question_pattern = r"(0\d(?:\.\d)?[\s\S]*?)(?=\n\s*0\d(?:\.\d)?|\Z)"
         chunks = re.findall(question_pattern, text)
 
         logger.info(f"Found {len(chunks)} question chunks using regex pattern")
-        for i, chunk in enumerate(chunks, 1):
-            preview = chunk[:100].replace("\n", " ")
-            logger.debug(f"Chunk {i}: {preview}...")
 
-        return chunks
+        merged_chunks = []
+        skip_next = False
+
+        for i in range(len(chunks)):
+            if skip_next:
+                skip_next = False
+                continue
+
+            current_chunk = chunks[i].strip()
+
+            # Extract question number from current chunk start
+            current_qnum_match = re.match(r"^(0\d(?:\.\d)?)", current_chunk)
+            current_qnum = current_qnum_match.group(1) if current_qnum_match else None
+
+            # Check if next chunk exists and can be merged
+            if i + 1 < len(chunks):
+                next_chunk = chunks[i + 1].strip()
+                next_qnum_match = re.match(r"^(0\d(?:\.\d)?)", next_chunk)
+                next_qnum = next_qnum_match.group(1) if next_qnum_match else None
+
+                # Merge only if next chunk is the '.1' sub-question of current base question
+                if current_qnum and next_qnum:
+                    base_current = current_qnum.split(".")[0]
+                    base_next = next_qnum.split(".")[0]
+
+                    if (base_current == base_next) and (next_qnum.endswith(".1")):
+                        # Merge current and next chunk
+                        merged_text = f"{current_chunk} {next_chunk}"
+                        merged_chunks.append({"question_number": base_current, "text": merged_text})
+                        skip_next = True
+                        continue
+
+            # If no merge happened, just add current chunk as is
+            merged_chunks.append({"question_number": current_qnum, "text": current_chunk})
+
+        logger.info(f"After merging, total question chunks: {len(merged_chunks)}")
+
+        return merged_chunks
+
 
     def _structure_with_ai(self, chunks: List[str]) -> List[Dict]:
         logger.info(f"Processing {len(chunks)} chunks with AI...")
@@ -165,6 +215,7 @@ Analyze this exam question text and extract the information. Be very careful to:
 2. Clean the question text (remove question numbers like "01.1", figure references)
 3. Identify if it's Multiple Choice (has options to choose from) or Short Answer
 4. Extract individual options if it's multiple choice
+5. Multiple choice options MUST NOT be included in the question text.
 
 Text: {chunk}
 
