@@ -106,6 +106,8 @@ class PDFProcessor:
 
         text = text.replace("\u00a0", " ")
         text = re.sub(r'[✓]|\(\)', '', text)
+        text = re.sub(r"Figure\s*\d+", "the diagram below", text, flags=re.IGNORECASE)
+        text = re.sub(r"\bTable\s*\d+", "the table below", text, flags=re.IGNORECASE)
         logger.debug("Replaced non-breaking spaces")
 
         patterns_to_remove = [
@@ -212,7 +214,7 @@ class PDFProcessor:
                 prompt = f"""
 Analyze this exam question text and extract the information. Be very careful to:
 1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question
-2. Clean the question text (remove question numbers like "01.1", figure references)
+2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")
 3. Identify if it's Multiple Choice (has options to choose from) or Short Answer
 4. Extract individual options if it's multiple choice
 5. Multiple choice options MUST NOT be included in the question text.
@@ -221,7 +223,7 @@ Text: {chunk}
 
 Return ONLY valid JSON in this exact format:
 {{
-    "question": "clean question text without numbers or figure refs",
+    "question": "clean question text without numbers",
     "type": "Multiple Choice" or "Short Answer",
     "options": ["option1", "option2", "option3"] or [],
 }}
