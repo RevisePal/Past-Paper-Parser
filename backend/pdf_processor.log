@@ -1,0 +1,969 @@
+2025-06-05 20:23:20,945 - INFO - Initializing PDFProcessor...
+2025-06-05 20:23:20,950 - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-06-05 20:23:20,955 - DEBUG - load_verify_locations cafile='/Users/joshsparkes/.pyenv/versions/3.12.4/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-06-05 20:23:20,964 - INFO - OpenAI client initialized successfully
+2025-06-05 20:23:20,975 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-06-05 20:23:20,975 - INFO - [33mPress CTRL+C to quit[0m
+2025-06-05 20:23:20,982 - INFO -  * Restarting with watchdog (fsevents)
+2025-06-05 20:23:21,358 - INFO - Initializing PDFProcessor...
+2025-06-05 20:23:21,360 - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-06-05 20:23:21,361 - DEBUG - load_verify_locations cafile='/Users/joshsparkes/.pyenv/versions/3.12.4/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-06-05 20:23:21,367 - INFO - OpenAI client initialized successfully
+2025-06-05 20:23:21,370 - WARNING -  * Debugger is active!
+2025-06-05 20:23:21,380 - INFO -  * Debugger PIN: 163-922-767
+2025-06-05 20:23:31,050 - DEBUG - NativeEvent(path="/Users/joshsparkes/Developer/Past-Paper-Parser/backend/uploads/June_1.pdf", inode=147646521, flags=10100, id=101969594): is_created, is_file
+2025-06-05 20:23:31,050 - DEBUG - queue_event FileCreatedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/uploads/June_1.pdf', dest_path='', event_type='created', is_directory=False, is_synthetic=False)
+2025-06-05 20:23:31,050 - DEBUG - queue_event DirModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/uploads', dest_path='', event_type='modified', is_directory=True, is_synthetic=False)
+2025-06-05 20:23:31,059 - INFO - Starting PDF processing for: uploads/June_1.pdf
+2025-06-05 20:23:31,059 - INFO - Step 1: Extracting text from PDF...
+2025-06-05 20:23:31,059 - INFO - Opening PDF file: uploads/June_1.pdf
+2025-06-05 20:23:31,063 - INFO - PDF opened successfully. Total pages: 36
+2025-06-05 20:23:31,076 - DEBUG - NativeEvent(path="/Users/joshsparkes/Developer/Past-Paper-Parser/backend/uploads/June_1.pdf", inode=147646521, flags=11100, id=101969597): is_created, is_file, is_modified
+2025-06-05 20:23:31,083 - DEBUG - queue_event FileModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/uploads/June_1.pdf', dest_path='', event_type='modified', is_directory=False, is_synthetic=False)
+2025-06-05 20:23:31,084 - DEBUG - Extracted text from page 1: 445 characters
+2025-06-05 20:23:31,087 - DEBUG - Extracted text from page 2: 616 characters
+2025-06-05 20:23:31,090 - DEBUG - Extracted text from page 3: 620 characters
+2025-06-05 20:23:31,094 - DEBUG - Extracted text from page 4: 675 characters
+2025-06-05 20:23:31,095 - DEBUG - Extracted text from page 5: 225 characters
+2025-06-05 20:23:31,096 - DEBUG - Extracted text from page 6: 191 characters
+2025-06-05 20:23:31,097 - DEBUG - Extracted text from page 7: 483 characters
+2025-06-05 20:23:31,099 - DEBUG - Extracted text from page 8: 672 characters
+2025-06-05 20:23:31,100 - DEBUG - Extracted text from page 9: 892 characters
+2025-06-05 20:23:31,102 - DEBUG - Extracted text from page 10: 855 characters
+2025-06-05 20:23:31,103 - DEBUG - Extracted text from page 11: 602 characters
+2025-06-05 20:23:31,106 - DEBUG - Extracted text from page 12: 762 characters
+2025-06-05 20:23:31,106 - INFO - Text extraction complete. Total characters: 7038
+2025-06-05 20:23:31,107 - DEBUG - PDF document closed
+2025-06-05 20:23:31,107 - INFO - ✓ Text extracted successfully. Pages: 36, Characters: 7038
+2025-06-05 20:23:31,107 - INFO - Step 2: Cleaning extracted text...
+2025-06-05 20:23:31,107 - INFO - Starting text cleaning process...
+2025-06-05 20:23:31,107 - DEBUG - Replaced non-breaking spaces
+2025-06-05 20:23:31,108 - DEBUG - Pattern 1: Removed 372 characters
+2025-06-05 20:23:31,108 - DEBUG - Pattern 3: Removed 72 characters
+2025-06-05 20:23:31,108 - DEBUG - Pattern 5: Removed 120 characters
+2025-06-05 20:23:31,108 - DEBUG - Pattern 7: Removed 48 characters
+2025-06-05 20:23:31,108 - DEBUG - Pattern 8: Removed 90 characters
+2025-06-05 20:23:31,108 - INFO - Text cleaning complete. Reduced from 7038 to 6072 characters (966 removed)
+2025-06-05 20:23:31,109 - INFO - ✓ Text cleaned. Characters after cleaning: 6072
+2025-06-05 20:23:31,109 - INFO - Step 3: Segmenting into question chunks...
+2025-06-05 20:23:31,109 - INFO - Segmenting text into question chunks...
+2025-06-05 20:23:31,109 - INFO - Found 22 question chunks using regex pattern
+2025-06-05 20:23:31,109 - INFO - After merging, total question chunks: 19
+2025-06-05 20:23:31,109 - INFO - ✓ Found 19 question chunks
+2025-06-05 20:23:31,109 - INFO - Step 4: Processing questions with AI...
+2025-06-05 20:23:31,109 - INFO - Processing 19 chunks with AI...
+2025-06-05 20:23:31,109 - INFO - Processing question 1/19...
+2025-06-05 20:23:31,109 - DEBUG - Sending chunk 1 to OpenAI API...
+2025-06-05 20:23:31,111 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'01\', \'text\': \'01 \\n \\nA student investigated how the potential difference across a filament lamp affects the \\ncurrent in the lamp. \\nthe diagram below shows the circuit the student used. \\nthe diagram below 01.1 \\nthe diagram below shows a circuit symbol. \\nthe diagram below \\nWhat component does the symbol represent? \\n[1 mark] \\nTick one box. \\nAmmeter \\n \\n \\nBattery \\n \\n \\nLamp \\n \\n \\nVariable resistor\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:31,131 - DEBUG - connect_tcp.started host='api.openai.com' port=443 local_address=None timeout=5.0 socket_options=None
+2025-06-05 20:23:31,177 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x10903bad0>
+2025-06-05 20:23:31,177 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x106378f50> server_hostname='api.openai.com' timeout=5.0
+2025-06-05 20:23:31,198 - DEBUG - start_tls.complete return_value=<httpcore._backends.sync.SyncStream object at 0x10903bda0>
+2025-06-05 20:23:31,198 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:31,199 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:31,199 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:31,199 - DEBUG - send_request_body.complete
+2025-06-05 20:23:31,199 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:32,764 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:32 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'681'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'684'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999700'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_7807845f395c8c940a99fb33d4ef6941'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'Set-Cookie', b'__cf_bm=bpqJqEaPdpJQ87wechPgFufqNxIOqbah9HUvr6yx8vs-1749151412-1.0.1.1-e0fNUyHRLGfDlcFv8B_2l0lqq2sKZHzp4J9G6mZpsLtSNUbVC.V_lZFd8pw2TULE7RGMbbn6kN6KrPE8aJz6F_RtLP._35ish8JUqi66nDo; path=/; expires=Thu, 05-Jun-25 19:53:32 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), (b'X-Content-Type-Options', b'nosniff'), (b'Set-Cookie', b'_cfuvid=rvgFyU34_PSXqSLO9YHwQHQ.PRiir4eweF9EtgUUusk-1749151412784-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20b803dc64173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:32,767 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:32,767 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:32,767 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:32,767 - DEBUG - response_closed.started
+2025-06-05 20:23:32,767 - DEBUG - response_closed.complete
+2025-06-05 20:23:32,768 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:32,774 - DEBUG - Received response from OpenAI for question 1
+2025-06-05 20:23:32,775 - INFO - ✓ Question 1 processed successfully with AI
+2025-06-05 20:23:32,775 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:23:32,775 - DEBUG -   Options: 4
+2025-06-05 20:23:32,775 - DEBUG -   Marks: 
+2025-06-05 20:23:32,775 - INFO - Processing question 2/19...
+2025-06-05 20:23:32,775 - DEBUG - Sending chunk 2 to OpenAI API...
+2025-06-05 20:23:32,779 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'01.2\', \'text\': \'01.2 \\nWhich component from the diagram below did the student use to adjust the potential difference \\nacross the lamp? \\n[1 mark]\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:32,781 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:32,781 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:32,782 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:32,782 - DEBUG - send_request_body.complete
+2025-06-05 20:23:32,782 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:33,912 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:33 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'461'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'468'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999765'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'3ms'), (b'x-request-id', b'req_efe10e48b0dcf93c6a88dd05c12bb9ac'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20b8a1fe54173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:33,913 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:33,914 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:33,922 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:33,922 - DEBUG - response_closed.started
+2025-06-05 20:23:33,923 - DEBUG - response_closed.complete
+2025-06-05 20:23:33,923 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:33,926 - DEBUG - Received response from OpenAI for question 2
+2025-06-05 20:23:33,926 - INFO - ✓ Question 2 processed successfully with AI
+2025-06-05 20:23:33,926 - DEBUG -   Type: Short Answer
+2025-06-05 20:23:33,926 - DEBUG -   Options: 0
+2025-06-05 20:23:33,926 - DEBUG -   Marks: 
+2025-06-05 20:23:33,926 - INFO - Processing question 3/19...
+2025-06-05 20:23:33,926 - DEBUG - Sending chunk 3 to OpenAI API...
+2025-06-05 20:23:33,930 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'01.3\', \'text\': \'01.3 \\nWhen the voltmeter was not connected to the circuit it gave a reading of 0.4 volts. \\nHow can the student correct all the readings taken from the voltmeter? \\n[1 mark]\\nTick one box. \\nAdd 0.4 volts to each reading \\n \\nDivide each reading by 0.4 volts \\n \\nMultiply each reading by 0.4 volts \\n \\nSubtract 0.4 volts from each reading \\n \\n \\n \\n \\n \\nQuestion 1 continues on the next page \\n/8464/P/1F\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:33,932 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:33,932 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:33,932 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:33,933 - DEBUG - send_request_body.complete
+2025-06-05 20:23:33,933 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:35,578 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:35 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'1101'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'1105'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999697'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_5cd11dac1b45b0a1c999bd99eea987c7'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20b914f074173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:35,580 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:35,580 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:35,580 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:35,581 - DEBUG - response_closed.started
+2025-06-05 20:23:35,581 - DEBUG - response_closed.complete
+2025-06-05 20:23:35,581 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:35,583 - DEBUG - Received response from OpenAI for question 3
+2025-06-05 20:23:35,583 - INFO - ✓ Question 3 processed successfully with AI
+2025-06-05 20:23:35,583 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:23:35,583 - DEBUG -   Options: 4
+2025-06-05 20:23:35,583 - DEBUG -   Marks: 
+2025-06-05 20:23:35,584 - INFO - Processing question 4/19...
+2025-06-05 20:23:35,584 - DEBUG - Sending chunk 4 to OpenAI API...
+2025-06-05 20:23:35,588 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'01.4\', \'text\': \'01.4 \\nThe student recorded three values of current for each potential difference. \\nthe table below shows the results for 2.5 volts. \\nthe table below \\nPotential difference \\nin volts \\nCurrent in amps \\n2 \\n2.5 \\n0.54 \\n0.58 \\n0.53 \\nCalculate the mean current in the lamp. \\n[2 marks] \\n \\n \\n \\n \\n \\nMean current = \\n \\nA\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:35,590 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:35,591 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:35,591 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:35,591 - DEBUG - send_request_body.complete
+2025-06-05 20:23:35,591 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:36,554 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:36 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'745'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'749'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999717'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_a950bfb270a8469f2ec2107f00e7147c'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20b9ba8ba4173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:36,557 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:36,557 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:36,558 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:36,558 - DEBUG - response_closed.started
+2025-06-05 20:23:36,558 - DEBUG - response_closed.complete
+2025-06-05 20:23:36,558 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:36,560 - DEBUG - Received response from OpenAI for question 4
+2025-06-05 20:23:36,560 - INFO - ✓ Question 4 processed successfully with AI
+2025-06-05 20:23:36,560 - DEBUG -   Type: Short Answer
+2025-06-05 20:23:36,560 - DEBUG -   Options: 0
+2025-06-05 20:23:36,560 - DEBUG -   Marks: 
+2025-06-05 20:23:36,560 - INFO - Processing question 5/19...
+2025-06-05 20:23:36,560 - DEBUG - Sending chunk 5 to OpenAI API...
+2025-06-05 20:23:36,564 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'01.5\', \'text\': \'01.5 \\nCalculate the power of the lamp when the potential difference across the lamp \\nwas 4.8 V \\nThe current in the lamp was 0.75 A \\nUse the equation: \\npower = potential difference × current \\n[2 marks] \\n \\n \\n \\n \\n \\nPower = \\n \\nW\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:36,565 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:36,566 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:36,567 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:36,567 - DEBUG - send_request_body.complete
+2025-06-05 20:23:36,567 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:37,726 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:37 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'919'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'921'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999738'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'3ms'), (b'x-request-id', b'req_5b55adcac9b6bed455b8b658da90eb42'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20ba1ce4b4173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:37,728 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:37,728 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:37,729 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:37,729 - DEBUG - response_closed.started
+2025-06-05 20:23:37,729 - DEBUG - response_closed.complete
+2025-06-05 20:23:37,729 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:37,732 - DEBUG - Received response from OpenAI for question 5
+2025-06-05 20:23:37,732 - INFO - ✓ Question 5 processed successfully with AI
+2025-06-05 20:23:37,732 - DEBUG -   Type: Short Answer
+2025-06-05 20:23:37,732 - DEBUG -   Options: 0
+2025-06-05 20:23:37,732 - DEBUG -   Marks: 
+2025-06-05 20:23:37,732 - INFO - Processing question 6/19...
+2025-06-05 20:23:37,732 - DEBUG - Sending chunk 6 to OpenAI API...
+2025-06-05 20:23:37,736 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'01.6\', \'text\': \'01.6 \\nCalculate the resistance of the lamp when the potential difference across the lamp \\nwas 4.8 V \\nThe current in the lamp was 0.75 A \\nUse the equation: \\nresistance = potential difference\\ncurrent\\n \\n[2 marks] \\n \\n \\n \\n \\n \\nResistance = \\n \\nΩ\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:37,737 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:37,738 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:37,738 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:37,738 - DEBUG - send_request_body.complete
+2025-06-05 20:23:37,738 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:39,775 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:39 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'1236'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'1239'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999734'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'3ms'), (b'x-request-id', b'req_623ccef53656c507fa5422d2adcf89a3'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20ba91dc34173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:39,777 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:39,777 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:39,778 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:39,778 - DEBUG - response_closed.started
+2025-06-05 20:23:39,778 - DEBUG - response_closed.complete
+2025-06-05 20:23:39,778 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:39,781 - DEBUG - Received response from OpenAI for question 6
+2025-06-05 20:23:39,781 - INFO - ✓ Question 6 processed successfully with AI
+2025-06-05 20:23:39,781 - DEBUG -   Type: Short Answer
+2025-06-05 20:23:39,781 - DEBUG -   Options: 0
+2025-06-05 20:23:39,781 - DEBUG -   Marks: 
+2025-06-05 20:23:39,781 - INFO - Processing question 7/19...
+2025-06-05 20:23:39,782 - DEBUG - Sending chunk 7 to OpenAI API...
+2025-06-05 20:23:39,786 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'01.7\', \'text\': \'01.7 \\nComplete the sentence. \\nChoose answers from the box. \\nEach answer may be used once, more than once or not at all. \\n[2 marks]\\ndecrease \\nincrease \\nstay the same \\n \\nIncreasing the current in a filament lamp makes the temperature \\nof the lamp \\nand the \\nresistance of the lamp \\n. \\n \\n \\n \\n \\nQuestion 1 continues on the next page \\n/8464/P/1F\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:39,788 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:39,789 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:39,789 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:39,790 - DEBUG - send_request_body.complete
+2025-06-05 20:23:39,790 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:41,181 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:41 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'810'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'817'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999709'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_1b74080de82e96c8f1434080c928d9f3'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20bb5e9964173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:41,182 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:41,183 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:41,183 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:41,183 - DEBUG - response_closed.started
+2025-06-05 20:23:41,184 - DEBUG - response_closed.complete
+2025-06-05 20:23:41,184 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:41,186 - DEBUG - Received response from OpenAI for question 7
+2025-06-05 20:23:41,186 - INFO - ✓ Question 7 processed successfully with AI
+2025-06-05 20:23:41,186 - DEBUG -   Type: Short Answer
+2025-06-05 20:23:41,186 - DEBUG -   Options: 3
+2025-06-05 20:23:41,187 - DEBUG -   Marks: 
+2025-06-05 20:23:41,187 - INFO - Processing question 8/19...
+2025-06-05 20:23:41,187 - DEBUG - Sending chunk 8 to OpenAI API...
+2025-06-05 20:23:41,190 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'01.8\', \'text\': \'01.8 \\nWhich graph shows the relationship between potential difference and current for a \\nfilament lamp? \\n [1 mark]\\nTick one box. \\n for the next question \\nDO NOT WRITE ON THIS PAGE \\nANSWER IN THE SPACES PROVIDED \\n/8464/P/1F\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:41,191 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:41,192 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:41,192 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:41,192 - DEBUG - send_request_body.complete
+2025-06-05 20:23:41,193 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:42,540 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:42 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'1051'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'1056'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999740'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'3ms'), (b'x-request-id', b'req_b5068139f9d5f00726a67c6d66da70f3'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20bbeaa204173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:42,542 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:42,542 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:42,542 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:42,543 - DEBUG - response_closed.started
+2025-06-05 20:23:42,543 - DEBUG - response_closed.complete
+2025-06-05 20:23:42,543 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:42,545 - DEBUG - Received response from OpenAI for question 8
+2025-06-05 20:23:42,545 - INFO - ✓ Question 8 processed successfully with AI
+2025-06-05 20:23:42,546 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:23:42,546 - DEBUG -   Options: 0
+2025-06-05 20:23:42,546 - DEBUG -   Marks: 
+2025-06-05 20:23:42,546 - INFO - Processing question 9/19...
+2025-06-05 20:23:42,546 - DEBUG - Sending chunk 9 to OpenAI API...
+2025-06-05 20:23:42,550 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'02\', \'text\': \'02 \\nthe diagram below shows a lift near the bottom of a building. \\nThe lift is attached by a cable to a counterweight. \\nAn electric motor moves the lift. \\nThe lift is moving up. \\nthe diagram below 02.1 \\nAs the lift moves up, how far does the counterweight move down? \\n [1 mark]\\nTick one box. \\nA shorter distance than the lift. \\n \\n \\nThe same distance as the lift. \\n \\n \\nA longer distance than the lift.\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:42,552 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:42,552 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:42,552 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:42,552 - DEBUG - send_request_body.complete
+2025-06-05 20:23:42,553 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:43,940 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:43 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'1154'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'1157'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999695'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_1840f9f80a78a2af592bb3baab4decd5'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20bc72a6c4173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:43,942 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:43,942 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:43,943 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:43,943 - DEBUG - response_closed.started
+2025-06-05 20:23:43,943 - DEBUG - response_closed.complete
+2025-06-05 20:23:43,943 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:43,945 - DEBUG - Received response from OpenAI for question 9
+2025-06-05 20:23:43,946 - INFO - ✓ Question 9 processed successfully with AI
+2025-06-05 20:23:43,946 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:23:43,946 - DEBUG -   Options: 3
+2025-06-05 20:23:43,946 - DEBUG -   Marks: 
+2025-06-05 20:23:43,946 - INFO - Processing question 10/19...
+2025-06-05 20:23:43,946 - DEBUG - Sending chunk 10 to OpenAI API...
+2025-06-05 20:23:43,951 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'02.2\', \'text\': \'02.2 \\nWhat happens to the gravitational potential energy of the counterweight as it \\nmoves down? \\n [1 mark]\\nTick one box. \\nIt decreases \\n \\n \\nIt stays the same \\n \\n \\nIt increases\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:43,952 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:43,953 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:43,953 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:43,953 - DEBUG - send_request_body.complete
+2025-06-05 20:23:43,954 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:45,204 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:45 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'588'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'597'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999752'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'3ms'), (b'x-request-id', b'req_1584d0b10d02347280361fccafefbbd9'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20bcffad44173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:45,205 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:45,205 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:45,206 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:45,206 - DEBUG - response_closed.started
+2025-06-05 20:23:45,206 - DEBUG - response_closed.complete
+2025-06-05 20:23:45,206 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:45,208 - DEBUG - Received response from OpenAI for question 10
+2025-06-05 20:23:45,208 - INFO - ✓ Question 10 processed successfully with AI
+2025-06-05 20:23:45,208 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:23:45,208 - DEBUG -   Options: 3
+2025-06-05 20:23:45,208 - DEBUG -   Marks: 
+2025-06-05 20:23:45,208 - INFO - Processing question 11/19...
+2025-06-05 20:23:45,208 - DEBUG - Sending chunk 11 to OpenAI API...
+2025-06-05 20:23:45,211 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'02.3\', \'text\': \'02.3 \\nCalculate the change in gravitational potential energy of the lift when it \\nmoves up 4.0 m \\nThe mass of the lift is 1300 kg \\ngravitational field strength = 9.8 N/kg \\nUse the equation: \\ngravitational potential energy = mass × gravitational field strength × height \\n[2 marks]\\nChange in gravitational potential energy = \\n \\nJ \\n \\n \\n \\nQuestion 2 continues on the next page \\n/8464/P/1F\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:45,212 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:45,213 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:45,213 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:45,213 - DEBUG - send_request_body.complete
+2025-06-05 20:23:45,213 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:46,553 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:46 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'794'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'799'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999699'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_0ebeffff1714aae8eae11fcfc216316e'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20bd7da784173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:46,555 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:46,555 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:46,571 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:46,571 - DEBUG - response_closed.started
+2025-06-05 20:23:46,571 - DEBUG - response_closed.complete
+2025-06-05 20:23:46,572 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:46,574 - DEBUG - Received response from OpenAI for question 11
+2025-06-05 20:23:46,574 - INFO - ✓ Question 11 processed successfully with AI
+2025-06-05 20:23:46,574 - DEBUG -   Type: Short Answer
+2025-06-05 20:23:46,574 - DEBUG -   Options: 0
+2025-06-05 20:23:46,575 - DEBUG -   Marks: 
+2025-06-05 20:23:46,575 - INFO - Processing question 12/19...
+2025-06-05 20:23:46,575 - DEBUG - Sending chunk 12 to OpenAI API...
+2025-06-05 20:23:46,581 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'02.4\', \'text\': \'02.4 \\nComplete the sentences. \\nChoose answers from the box. \\n [2 marks] \\nchemical \\nelastic potential \\ngravitational potential \\ninternal \\n kinetic \\nFriction between the brakes and the cable causes the speed of the lift to decrease. \\nAs the speed decreases, there is a decrease in the \\nenergy of the lift. \\n \\nAs the speed decreases, there is an increase in the \\n \\nenergy of the brakes.\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:46,583 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:46,584 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:46,584 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:46,584 - DEBUG - send_request_body.complete
+2025-06-05 20:23:46,584 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:48,224 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:48 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'1378'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'1414'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999699'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_514d9f46e256dc6fce389df229f43cb9'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20be06b574173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:48,225 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:48,226 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:48,226 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:48,227 - DEBUG - response_closed.started
+2025-06-05 20:23:48,227 - DEBUG - response_closed.complete
+2025-06-05 20:23:48,227 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:48,229 - DEBUG - Received response from OpenAI for question 12
+2025-06-05 20:23:48,229 - INFO - ✓ Question 12 processed successfully with AI
+2025-06-05 20:23:48,229 - DEBUG -   Type: Short Answer
+2025-06-05 20:23:48,229 - DEBUG -   Options: 0
+2025-06-05 20:23:48,229 - DEBUG -   Marks: 
+2025-06-05 20:23:48,229 - INFO - Processing question 13/19...
+2025-06-05 20:23:48,230 - DEBUG - Sending chunk 13 to OpenAI API...
+2025-06-05 20:23:48,233 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'02.5\', \'text\': \'02.5 \\nThe motor transfers different amounts of energy each time people use the lift. \\nWhich factors affect the amount of energy transferred by the motor as the lift moves? \\n[2 marks]\\nTick two boxes. \\nThe distance moved by the lift \\n \\n \\nThe height of the building \\n \\n \\nThe length of the steel cable \\n \\n \\nThe maximum power of the motor \\n \\n \\nThe weight of the people in the lift \\n11\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:48,235 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:48,235 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:48,235 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:48,236 - DEBUG - send_request_body.complete
+2025-06-05 20:23:48,236 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:49,271 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:49 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'816'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'826'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999700'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_54e34d61e102940934e121af516ceeeb'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20beabd7e4173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:49,272 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:49,272 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:49,272 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:49,272 - DEBUG - response_closed.started
+2025-06-05 20:23:49,272 - DEBUG - response_closed.complete
+2025-06-05 20:23:49,272 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:49,273 - DEBUG - Received response from OpenAI for question 13
+2025-06-05 20:23:49,273 - INFO - ✓ Question 13 processed successfully with AI
+2025-06-05 20:23:49,273 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:23:49,273 - DEBUG -   Options: 5
+2025-06-05 20:23:49,273 - DEBUG -   Marks: 
+2025-06-05 20:23:49,273 - INFO - Processing question 14/19...
+2025-06-05 20:23:49,273 - DEBUG - Sending chunk 14 to OpenAI API...
+2025-06-05 20:23:49,274 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'02.6\', \'text\': \'02.6 \\nThe weight of the lift and the counterweight stretch the cable by 0.015 m \\nThe cable acts like a spring with a spring constant of 880 000 N/m \\nCalculate the elastic potential energy of the stretched cable. \\n \\nUse the equation: \\nelastic potential energy = 0.5 × spring constant × (extension)2 \\n[2 marks] \\n \\n \\n \\n \\n \\nElastic potential energy = \\n \\nJ\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:49,274 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:49,274 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:49,275 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:49,275 - DEBUG - send_request_body.complete
+2025-06-05 20:23:49,275 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:50,629 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:50 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'780'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'1087'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999706'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_02484287fc8ad971e0b25ef5af0c9e3e'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20bf13c8e4173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:50,629 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:50,629 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:50,630 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:50,630 - DEBUG - response_closed.started
+2025-06-05 20:23:50,630 - DEBUG - response_closed.complete
+2025-06-05 20:23:50,630 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:50,630 - DEBUG - Received response from OpenAI for question 14
+2025-06-05 20:23:50,630 - INFO - ✓ Question 14 processed successfully with AI
+2025-06-05 20:23:50,630 - DEBUG -   Type: Short Answer
+2025-06-05 20:23:50,630 - DEBUG -   Options: 0
+2025-06-05 20:23:50,630 - DEBUG -   Marks: 
+2025-06-05 20:23:50,630 - INFO - Processing question 15/19...
+2025-06-05 20:23:50,630 - DEBUG - Sending chunk 15 to OpenAI API...
+2025-06-05 20:23:50,631 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'02.7\', \'text\': \'02.7 \\nA lift system using a counterweight is more efficient than a lift system that does not \\nuse a counterweight. \\nHow does having a more efficient system affect the energy transferred by the motor? \\n[1 mark]\\nTick one box. \\nLess energy is transferred. \\n \\n \\nThe same amount of energy is transferred. \\n \\n \\nMore energy is transferred. \\n \\n \\n \\n \\n \\n \\n for the next question \\n/8464/P/1F\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:50,632 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:50,632 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:50,632 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:50,632 - DEBUG - send_request_body.complete
+2025-06-05 20:23:50,632 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:51,874 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:51 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'1030'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'1033'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999699'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_e361597a5827841e557d9951bfa4e2ff'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20bf9adc94173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:51,875 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:51,875 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:51,876 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:51,876 - DEBUG - response_closed.started
+2025-06-05 20:23:51,876 - DEBUG - response_closed.complete
+2025-06-05 20:23:51,877 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:51,878 - DEBUG - Received response from OpenAI for question 15
+2025-06-05 20:23:51,879 - INFO - ✓ Question 15 processed successfully with AI
+2025-06-05 20:23:51,879 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:23:51,879 - DEBUG -   Options: 3
+2025-06-05 20:23:51,879 - DEBUG -   Marks: 
+2025-06-05 20:23:51,879 - INFO - Processing question 16/19...
+2025-06-05 20:23:51,879 - DEBUG - Sending chunk 16 to OpenAI API...
+2025-06-05 20:23:51,885 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'03\', \'text\': \'03 \\n \\nA teacher demonstrated that the radioactive isotope americium-241 emits \\nalpha particles. \\nthe diagram below shows the equipment used. \\nthe diagram below 03.1 \\nAn americium-241 nucleus (Am) emits an alpha particle and turns into a neptunium \\nnucleus (Np). \\nWhich is the correct nuclear equation for this decay? \\nTick one box. \\n[1 mark]\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:51,887 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:51,888 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:51,888 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:51,888 - DEBUG - send_request_body.complete
+2025-06-05 20:23:51,888 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:53,437 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:53 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'1340'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'1344'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999711'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_ac79a6feb891a45ee6eeb2b62c8794b7'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20c018f554173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:53,438 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:53,438 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:53,439 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:53,439 - DEBUG - response_closed.started
+2025-06-05 20:23:53,439 - DEBUG - response_closed.complete
+2025-06-05 20:23:53,440 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:53,442 - DEBUG - Received response from OpenAI for question 16
+2025-06-05 20:23:53,442 - INFO - ✓ Question 16 processed successfully with AI
+2025-06-05 20:23:53,442 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:23:53,442 - DEBUG -   Options: 0
+2025-06-05 20:23:53,442 - DEBUG -   Marks: 
+2025-06-05 20:23:53,442 - INFO - Processing question 17/19...
+2025-06-05 20:23:53,442 - DEBUG - Sending chunk 17 to OpenAI API...
+2025-06-05 20:23:53,446 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'03.2\', \'text\': \'03.2 \\nWhat is the furthest distance that alpha radiation can travel in air? \\n \\n \\nTick one box. \\n[1 mark]\\nA few millimetres \\n \\n \\nA few centimetres \\n \\n \\nA few metres\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:53,447 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:53,448 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:53,449 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:53,449 - DEBUG - send_request_body.complete
+2025-06-05 20:23:53,449 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:54,789 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:54 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'1113'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'1133'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999754'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'3ms'), (b'x-request-id', b'req_04a756e108b1dd61761bf2506c5b9167'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20c0b49524173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:54,804 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:54,804 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:54,804 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:54,804 - DEBUG - response_closed.started
+2025-06-05 20:23:54,804 - DEBUG - response_closed.complete
+2025-06-05 20:23:54,805 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:54,806 - DEBUG - Received response from OpenAI for question 17
+2025-06-05 20:23:54,806 - INFO - ✓ Question 17 processed successfully with AI
+2025-06-05 20:23:54,806 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:23:54,806 - DEBUG -   Options: 3
+2025-06-05 20:23:54,806 - DEBUG -   Marks: 
+2025-06-05 20:23:54,806 - INFO - Processing question 18/19...
+2025-06-05 20:23:54,806 - DEBUG - Sending chunk 18 to OpenAI API...
+2025-06-05 20:23:54,810 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'03.3\', \'text\': \'03.3 \\nThe teacher placed a piece of paper between the americium-241 and the \\nradiation detector. \\nThe reading on the count rate meter decreased by a large amount. \\nWhy does the decreased reading show that americium-241 emits alpha radiation? \\n \\n \\nTick one box. \\n[1 mark]\\nPaper stops alpha radiation. \\n \\n \\nPaper stops all types of radiation. \\n \\n \\nPaper stops beta and gamma radiation. \\n \\n \\n \\n \\n \\n \\n \\nThe teacher replaced the americium-241 with a source of beta radiation.\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:54,812 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:54,812 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:54,812 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:54,813 - DEBUG - send_request_body.complete
+2025-06-05 20:23:54,813 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:56,436 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:56 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'1413'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'1417'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999675'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_d5bced2f1506baa880aab5d23750bb74'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20c13ca174173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:56,447 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:56,447 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:56,448 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:56,448 - DEBUG - response_closed.started
+2025-06-05 20:23:56,448 - DEBUG - response_closed.complete
+2025-06-05 20:23:56,448 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:56,450 - DEBUG - Received response from OpenAI for question 18
+2025-06-05 20:23:56,450 - INFO - ✓ Question 18 processed successfully with AI
+2025-06-05 20:23:56,450 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:23:56,450 - DEBUG -   Options: 3
+2025-06-05 20:23:56,452 - DEBUG -   Marks: 
+2025-06-05 20:23:56,452 - INFO - Processing question 19/19...
+2025-06-05 20:23:56,452 - DEBUG - Sending chunk 19 to OpenAI API...
+2025-06-05 20:23:56,454 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify if it\'s Multiple Choice (has options to choose from) or Short Answer\n4. Extract individual options if it\'s multiple choice\n5. Multiple choice options MUST NOT be included in the question text.\n\nText: {\'question_number\': \'03.4\', \'text\': \'03.4 \\nWhich symbol represents a beta particle? \\n[1 mark]\\nTick one box. \\ne\\n–1\\ne\\n0 \\n \\n \\n \\ne\\n–1\\n–1 \\n \\n \\n \\n \\ne\\n–1 \\n \\n \\n \\n \\n \\n \\nQuestion 3 continues on the next page\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers",\n    "type": "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:23:56,455 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:56,456 - DEBUG - send_request_headers.complete
+2025-06-05 20:23:56,456 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:23:56,456 - DEBUG - send_request_body.complete
+2025-06-05 20:23:56,456 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:23:57,184 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:23:57 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'461'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'466'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999750'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'3ms'), (b'x-request-id', b'req_9a67b6166c52a4ca38eb3fe6f56b8ee2'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b20c1e1aeb4173-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:23:57,184 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:23:57,184 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:23:57,185 - DEBUG - receive_response_body.complete
+2025-06-05 20:23:57,185 - DEBUG - response_closed.started
+2025-06-05 20:23:57,185 - DEBUG - response_closed.complete
+2025-06-05 20:23:57,185 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:23:57,186 - DEBUG - Received response from OpenAI for question 19
+2025-06-05 20:23:57,186 - INFO - ✓ Question 19 processed successfully with AI
+2025-06-05 20:23:57,186 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:23:57,186 - DEBUG -   Options: 3
+2025-06-05 20:23:57,186 - DEBUG -   Marks: 
+2025-06-05 20:23:57,186 - INFO - AI processing complete: 19 AI successes, 0 fallbacks
+2025-06-05 20:23:57,187 - INFO - ✓ Processed 19 questions
+2025-06-05 20:23:57,187 - INFO - Step 5: Validating question data...
+2025-06-05 20:23:57,187 - INFO - Validating 19 questions...
+2025-06-05 20:23:57,187 - DEBUG - Question 1 validation: ✓
+2025-06-05 20:23:57,187 - DEBUG - Question 2 validation: ✓
+2025-06-05 20:23:57,187 - DEBUG - Question 3 validation: ✓
+2025-06-05 20:23:57,187 - DEBUG - Question 4 validation: ✓
+2025-06-05 20:23:57,187 - DEBUG - Question 5 validation: ✓
+2025-06-05 20:23:57,187 - DEBUG - Question 6 validation: ✓
+2025-06-05 20:23:57,187 - DEBUG - Question 7 validation: ✓
+2025-06-05 20:23:57,187 - DEBUG - Question 8 validation: ✓
+2025-06-05 20:23:57,187 - DEBUG - Question 9 validation: ✓
+2025-06-05 20:23:57,187 - DEBUG - Question 10 validation: ✓
+2025-06-05 20:23:57,187 - DEBUG - Question 11 validation: ✓
+2025-06-05 20:23:57,187 - DEBUG - Question 12 validation: ✓
+2025-06-05 20:23:57,187 - DEBUG - Question 13 validation: ✓
+2025-06-05 20:23:57,188 - DEBUG - Question 14 validation: ✓
+2025-06-05 20:23:57,188 - DEBUG - Question 15 validation: ✓
+2025-06-05 20:23:57,188 - DEBUG - Question 16 validation: ✓
+2025-06-05 20:23:57,188 - DEBUG - Question 17 validation: ✓
+2025-06-05 20:23:57,188 - DEBUG - Question 18 validation: ✓
+2025-06-05 20:23:57,188 - DEBUG - Question 19 validation: ✓
+2025-06-05 20:23:57,188 - INFO - Validation complete: 19 questions validated, 0 validation errors
+2025-06-05 20:23:57,188 - INFO - ✓ Validated 19 questions
+2025-06-05 20:23:57,188 - INFO - ✅ PDF processing completed successfully!
+2025-06-05 20:23:57,193 - INFO - 127.0.0.1 - - [05/Jun/2025 20:23:57] "POST /api/process-pdf HTTP/1.1" 200 -
+2025-06-05 20:23:57,210 - DEBUG - NativeEvent(path="/Users/joshsparkes/Developer/Past-Paper-Parser/backend/uploads/June_1.pdf", inode=147646521, flags=10200, id=101971774): is_file, is_removed
+2025-06-05 20:23:57,210 - DEBUG - queue_event FileDeletedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/uploads/June_1.pdf', dest_path='', event_type='deleted', is_directory=False, is_synthetic=False)
+2025-06-05 20:23:57,210 - DEBUG - queue_event DirModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/uploads', dest_path='', event_type='modified', is_directory=True, is_synthetic=False)
+2025-06-05 20:25:04,679 - DEBUG - NativeEvent(path="/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/__init__.cpython-312.pyc.4478671792", inode=147647128, flags=11900, id=101979088): is_coalesced, is_created, is_file, is_modified, is_renamed
+2025-06-05 20:25:04,679 - DEBUG - NativeEvent(path="/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/__init__.cpython-312.pyc", inode=147647128, flags=10800, id=101979089): is_file, is_renamed
+2025-06-05 20:25:04,679 - DEBUG - NativeEvent(path="/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/__init__.cpython-312.pyc", inode=145018235, flags=10800, id=101979090): is_file, is_renamed
+2025-06-05 20:25:04,679 - DEBUG - NativeEvent(path="/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/compat.cpython-312.pyc.4478674432", inode=147647129, flags=11900, id=101979099): is_coalesced, is_created, is_file, is_modified, is_renamed
+2025-06-05 20:25:04,679 - DEBUG - NativeEvent(path="/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/compat.cpython-312.pyc", inode=147647129, flags=10800, id=101979100): is_file, is_renamed
+2025-06-05 20:25:04,680 - DEBUG - NativeEvent(path="/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/compat.cpython-312.pyc", inode=145018239, flags=10800, id=101979101): is_file, is_renamed
+2025-06-05 20:25:04,680 - DEBUG - queue_event FileCreatedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/__init__.cpython-312.pyc.4478671792', dest_path='', event_type='created', is_directory=False, is_synthetic=False)
+2025-06-05 20:25:04,680 - DEBUG - queue_event DirModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__', dest_path='', event_type='modified', is_directory=True, is_synthetic=False)
+2025-06-05 20:25:04,680 - DEBUG - queue_event FileModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/__init__.cpython-312.pyc.4478671792', dest_path='', event_type='modified', is_directory=False, is_synthetic=False)
+2025-06-05 20:25:04,680 - DEBUG - Destination event for rename is NativeEvent(path="/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/__init__.cpython-312.pyc", inode=147647128, flags=10800, id=101979089)
+2025-06-05 20:25:04,681 - DEBUG - queue_event FileMovedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/__init__.cpython-312.pyc.4478671792', dest_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/__init__.cpython-312.pyc', event_type='moved', is_directory=False, is_synthetic=False)
+2025-06-05 20:25:04,681 - DEBUG - queue_event DirModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__', dest_path='', event_type='modified', is_directory=True, is_synthetic=False)
+2025-06-05 20:25:04,681 - DEBUG - queue_event DirModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__', dest_path='', event_type='modified', is_directory=True, is_synthetic=False)
+2025-06-05 20:25:04,681 - DEBUG - queue_event FileDeletedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/__init__.cpython-312.pyc', dest_path='', event_type='deleted', is_directory=False, is_synthetic=False)
+2025-06-05 20:25:04,681 - DEBUG - queue_event DirModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__', dest_path='', event_type='modified', is_directory=True, is_synthetic=False)
+2025-06-05 20:25:04,682 - DEBUG - queue_event FileCreatedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/compat.cpython-312.pyc.4478674432', dest_path='', event_type='created', is_directory=False, is_synthetic=False)
+2025-06-05 20:25:04,682 - DEBUG - queue_event DirModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__', dest_path='', event_type='modified', is_directory=True, is_synthetic=False)
+2025-06-05 20:25:04,682 - DEBUG - queue_event FileModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/compat.cpython-312.pyc.4478674432', dest_path='', event_type='modified', is_directory=False, is_synthetic=False)
+2025-06-05 20:25:04,682 - DEBUG - Destination event for rename is NativeEvent(path="/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/compat.cpython-312.pyc", inode=147647129, flags=10800, id=101979100)
+2025-06-05 20:25:04,682 - DEBUG - queue_event FileMovedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/compat.cpython-312.pyc.4478674432', dest_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/compat.cpython-312.pyc', event_type='moved', is_directory=False, is_synthetic=False)
+2025-06-05 20:25:04,682 - DEBUG - queue_event DirModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__', dest_path='', event_type='modified', is_directory=True, is_synthetic=False)
+2025-06-05 20:25:04,682 - DEBUG - queue_event DirModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__', dest_path='', event_type='modified', is_directory=True, is_synthetic=False)
+2025-06-05 20:25:04,682 - DEBUG - queue_event FileDeletedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__/compat.cpython-312.pyc', dest_path='', event_type='deleted', is_directory=False, is_synthetic=False)
+2025-06-05 20:25:04,682 - DEBUG - queue_event DirModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/venv/lib/python3.12/site-packages/wand/__pycache__', dest_path='', event_type='modified', is_directory=True, is_synthetic=False)
+2025-06-05 20:27:35,440 - DEBUG - NativeEvent(path="/Users/joshsparkes/Developer/Past-Paper-Parser/backend/pdf_processor.py", inode=147645183, flags=11400, id=101986438): is_file, is_inode_meta_mod, is_modified
+2025-06-05 20:27:35,441 - DEBUG - queue_event FileModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/pdf_processor.py', dest_path='', event_type='modified', is_directory=False, is_synthetic=False)
+2025-06-05 20:27:35,442 - INFO -  * Detected change in '/Users/joshsparkes/Developer/Past-Paper-Parser/backend/pdf_processor.py', reloading
+2025-06-05 20:27:36,057 - INFO -  * Restarting with watchdog (fsevents)
+2025-06-05 20:27:36,699 - INFO - Initializing PDFProcessor...
+2025-06-05 20:27:36,703 - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-06-05 20:27:36,707 - DEBUG - load_verify_locations cafile='/Users/joshsparkes/.pyenv/versions/3.12.4/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-06-05 20:27:36,717 - INFO - OpenAI client initialized successfully
+2025-06-05 20:27:36,722 - WARNING -  * Debugger is active!
+2025-06-05 20:27:36,731 - INFO -  * Debugger PIN: 163-922-767
+2025-06-05 20:27:54,518 - INFO - Starting PDF processing for: uploads/June.pdf
+2025-06-05 20:27:54,518 - INFO - Step 1: Extracting text from PDF...
+2025-06-05 20:27:54,518 - INFO - Opening PDF file: uploads/June.pdf
+2025-06-05 20:27:54,537 - DEBUG - NativeEvent(path="/Users/joshsparkes/Developer/Past-Paper-Parser/backend/uploads/June.pdf", inode=147647964, flags=11100, id=101990243): is_created, is_file, is_modified
+2025-06-05 20:27:54,537 - INFO - PDF opened successfully. Total pages: 36
+2025-06-05 20:27:54,555 - DEBUG - queue_event FileCreatedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/uploads/June.pdf', dest_path='', event_type='created', is_directory=False, is_synthetic=False)
+2025-06-05 20:27:54,563 - DEBUG - queue_event DirModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/uploads', dest_path='', event_type='modified', is_directory=True, is_synthetic=False)
+2025-06-05 20:27:54,563 - DEBUG - queue_event FileModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/uploads/June.pdf', dest_path='', event_type='modified', is_directory=False, is_synthetic=False)
+2025-06-05 20:27:54,564 - DEBUG - Extracted text from page 1: 445 characters
+2025-06-05 20:27:54,567 - DEBUG - Extracted text from page 2: 616 characters
+2025-06-05 20:27:54,569 - DEBUG - Extracted text from page 3: 620 characters
+2025-06-05 20:27:54,573 - DEBUG - Extracted text from page 4: 675 characters
+2025-06-05 20:27:54,574 - DEBUG - Extracted text from page 5: 225 characters
+2025-06-05 20:27:54,575 - DEBUG - Extracted text from page 6: 191 characters
+2025-06-05 20:27:54,576 - DEBUG - Extracted text from page 7: 483 characters
+2025-06-05 20:27:54,577 - DEBUG - Extracted text from page 8: 672 characters
+2025-06-05 20:27:54,579 - DEBUG - Extracted text from page 9: 892 characters
+2025-06-05 20:27:54,581 - DEBUG - Extracted text from page 10: 855 characters
+2025-06-05 20:27:54,582 - DEBUG - Extracted text from page 11: 602 characters
+2025-06-05 20:27:54,584 - DEBUG - Extracted text from page 12: 762 characters
+2025-06-05 20:27:54,584 - INFO - Text extraction complete. Total characters: 7038
+2025-06-05 20:27:54,585 - DEBUG - PDF document closed
+2025-06-05 20:27:54,585 - INFO - ✓ Text extracted successfully. Pages: 36, Characters: 7038
+2025-06-05 20:27:54,585 - INFO - Step 2: Cleaning extracted text...
+2025-06-05 20:27:54,585 - INFO - Starting text cleaning process...
+2025-06-05 20:27:54,585 - DEBUG - Replaced non-breaking spaces
+2025-06-05 20:27:54,585 - DEBUG - Preserving fill-in-the-blank patterns...
+2025-06-05 20:27:54,586 - DEBUG - Fill-in-the-blank preservation complete
+2025-06-05 20:27:54,586 - DEBUG - Pattern 1: Removed 372 characters
+2025-06-05 20:27:54,586 - DEBUG - Pattern 3: Removed 72 characters
+2025-06-05 20:27:54,587 - DEBUG - Pattern 5: Removed 120 characters
+2025-06-05 20:27:54,587 - DEBUG - Pattern 7: Removed 48 characters
+2025-06-05 20:27:54,587 - DEBUG - Pattern 8: Removed 90 characters
+2025-06-05 20:27:54,587 - INFO - Text cleaning complete. Reduced from 7038 to 6116 characters (922 removed)
+2025-06-05 20:27:54,587 - INFO - ✓ Text cleaned. Characters after cleaning: 6116
+2025-06-05 20:27:54,587 - INFO - Step 3: Segmenting into question chunks...
+2025-06-05 20:27:54,587 - INFO - Segmenting text into question chunks...
+2025-06-05 20:27:54,588 - INFO - Found 22 question chunks using regex pattern
+2025-06-05 20:27:54,588 - INFO - After merging, total question chunks: 19
+2025-06-05 20:27:54,588 - INFO - ✓ Found 19 question chunks
+2025-06-05 20:27:54,588 - INFO - Step 4: Processing questions with AI...
+2025-06-05 20:27:54,588 - INFO - Processing 19 chunks with AI...
+2025-06-05 20:27:54,588 - INFO - Processing question 1/19...
+2025-06-05 20:27:54,589 - DEBUG - Sending chunk 1 to OpenAI API...
+2025-06-05 20:27:54,591 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'01\', \'text\': \'01 \\n \\nA student investigated how the potential difference across a filament lamp affects the \\ncurrent in the lamp. \\nthe diagram below shows the circuit the student used. \\nthe diagram below 01.1 \\nthe diagram below shows a circuit symbol. \\nthe diagram below \\nWhat component does the symbol represent? \\n[1 mark] \\nTick (\\uf0fc) one box. \\nAmmeter \\n \\n \\nBattery \\n \\n \\nLamp \\n \\n \\nVariable resistor\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:27:54,617 - DEBUG - connect_tcp.started host='api.openai.com' port=443 local_address=None timeout=5.0 socket_options=None
+2025-06-05 20:27:54,645 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x10f818230>
+2025-06-05 20:27:54,645 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x108a1d1d0> server_hostname='api.openai.com' timeout=5.0
+2025-06-05 20:27:54,667 - DEBUG - start_tls.complete return_value=<httpcore._backends.sync.SyncStream object at 0x10f8182f0>
+2025-06-05 20:27:54,667 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:27:54,668 - DEBUG - send_request_headers.complete
+2025-06-05 20:27:54,668 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:27:54,668 - DEBUG - send_request_body.complete
+2025-06-05 20:27:54,668 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:27:56,136 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:27:56 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'1258'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'1264'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999631'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_8e708c9e6311061243a38ea4efa3f413'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'Set-Cookie', b'__cf_bm=1NrukG4T3FTuq7WSzlMQARYQIuUWu01gfhprDyNqhvs-1749151676-1.0.1.1-IRurHtMFgUvcBuEeEyMrOf092yAWYo1QtG73ou15RWAHpqCm_eObNcspSetwlWbQ8GjiZiwUXaCeATjv8afxaFBOA4Ha3IiagZFe.rj_qOA; path=/; expires=Thu, 05-Jun-25 19:57:56 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), (b'X-Content-Type-Options', b'nosniff'), (b'Set-Cookie', b'_cfuvid=.BSFZtC52gZVgw9pmgsr8Jte2.6Wjgl0SyYoUpwiAjE-1749151676157-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b211eeea30d8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:27:56,138 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:27:56,139 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:27:56,139 - DEBUG - receive_response_body.complete
+2025-06-05 20:27:56,140 - DEBUG - response_closed.started
+2025-06-05 20:27:56,140 - DEBUG - response_closed.complete
+2025-06-05 20:27:56,140 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:27:56,150 - DEBUG - Received response from OpenAI for question 1
+2025-06-05 20:27:56,150 - INFO - ✓ Question 1 processed successfully with AI
+2025-06-05 20:27:56,151 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:27:56,151 - DEBUG -   Options: 4
+2025-06-05 20:27:56,151 - DEBUG -   Marks: 
+2025-06-05 20:27:56,151 - INFO - Processing question 2/19...
+2025-06-05 20:27:56,151 - DEBUG - Sending chunk 2 to OpenAI API...
+2025-06-05 20:27:56,154 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'01.2\', \'text\': \'01.2 \\nWhich component from the diagram below did the student use to adjust the potential difference \\nacross the lamp? \\n[1 mark]\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:27:56,155 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:27:56,156 - DEBUG - send_request_headers.complete
+2025-06-05 20:27:56,156 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:27:56,156 - DEBUG - send_request_body.complete
+2025-06-05 20:27:56,156 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:27:57,148 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:27:57 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'775'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'781'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999699'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_ef24e1d27196290580d1e72fea8a22f3'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b211f8385dd8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:27:57,151 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:27:57,152 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:27:57,152 - DEBUG - receive_response_body.complete
+2025-06-05 20:27:57,153 - DEBUG - response_closed.started
+2025-06-05 20:27:57,153 - DEBUG - response_closed.complete
+2025-06-05 20:27:57,153 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:27:57,159 - DEBUG - Received response from OpenAI for question 2
+2025-06-05 20:27:57,159 - INFO - ✓ Question 2 processed successfully with AI
+2025-06-05 20:27:57,159 - DEBUG -   Type: Short Answer
+2025-06-05 20:27:57,160 - DEBUG -   Options: 0
+2025-06-05 20:27:57,160 - DEBUG -   Marks: 
+2025-06-05 20:27:57,160 - INFO - Processing question 3/19...
+2025-06-05 20:27:57,160 - DEBUG - Sending chunk 3 to OpenAI API...
+2025-06-05 20:27:57,163 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'01.3\', \'text\': \'01.3 \\nWhen the voltmeter was not connected to the circuit it gave a reading of 0.4 volts. \\nHow can the student correct all the readings taken from the voltmeter? \\n[1 mark]\\nTick (\\uf0fc) one box. \\nAdd 0.4 volts to each reading \\n \\nDivide each reading by 0.4 volts \\n \\nMultiply each reading by 0.4 volts \\n \\nSubtract 0.4 volts from each reading \\n \\n \\n \\n \\n \\nQuestion 1 continues on the next page \\n/8464/P/1F\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:27:57,164 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:27:57,164 - DEBUG - send_request_headers.complete
+2025-06-05 20:27:57,164 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:27:57,165 - DEBUG - send_request_body.complete
+2025-06-05 20:27:57,165 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:27:58,291 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:27:58 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'912'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'915'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999627'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_b44b34260e29b904b59d876e7dd2efd3'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b211fe8e65d8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:27:58,292 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:27:58,293 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:27:58,293 - DEBUG - receive_response_body.complete
+2025-06-05 20:27:58,293 - DEBUG - response_closed.started
+2025-06-05 20:27:58,294 - DEBUG - response_closed.complete
+2025-06-05 20:27:58,294 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:27:58,296 - DEBUG - Received response from OpenAI for question 3
+2025-06-05 20:27:58,296 - INFO - ✓ Question 3 processed successfully with AI
+2025-06-05 20:27:58,296 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:27:58,296 - DEBUG -   Options: 4
+2025-06-05 20:27:58,297 - DEBUG -   Marks: 
+2025-06-05 20:27:58,297 - INFO - Processing question 4/19...
+2025-06-05 20:27:58,297 - DEBUG - Sending chunk 4 to OpenAI API...
+2025-06-05 20:27:58,304 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'01.4\', \'text\': \'01.4 \\nThe student recorded three values of current for each potential difference. \\nthe table below shows the results for 2.5 volts. \\nthe table below \\nPotential difference \\nin volts \\nCurrent in amps \\n2 \\n2.5 \\n0.54 \\n0.58 \\n0.53 \\nCalculate the mean current in the lamp. \\n[2 marks] \\n \\n \\n \\n \\n \\nMean current = \\n \\nA\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:27:58,306 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:27:58,306 - DEBUG - send_request_headers.complete
+2025-06-05 20:27:58,307 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:27:58,307 - DEBUG - send_request_body.complete
+2025-06-05 20:27:58,307 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:27:59,885 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:27:59 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'1368'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'1371'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999650'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_b2ef00cf414798697ec379717d2f5cd0'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b21205ae98d8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:27:59,886 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:27:59,886 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:27:59,887 - DEBUG - receive_response_body.complete
+2025-06-05 20:27:59,887 - DEBUG - response_closed.started
+2025-06-05 20:27:59,887 - DEBUG - response_closed.complete
+2025-06-05 20:27:59,887 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:27:59,889 - DEBUG - Received response from OpenAI for question 4
+2025-06-05 20:27:59,889 - INFO - ✓ Question 4 processed successfully with AI
+2025-06-05 20:27:59,889 - DEBUG -   Type: Fill in the Blank
+2025-06-05 20:27:59,891 - DEBUG -   Options: 0
+2025-06-05 20:27:59,904 - DEBUG -   Marks: 
+2025-06-05 20:27:59,904 - INFO - Processing question 5/19...
+2025-06-05 20:27:59,905 - DEBUG - Sending chunk 5 to OpenAI API...
+2025-06-05 20:27:59,908 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'01.5\', \'text\': \'01.5 \\nCalculate the power of the lamp when the potential difference across the lamp \\nwas 4.8 V \\nThe current in the lamp was 0.75 A \\nUse the equation: \\npower = potential difference × current \\n[2 marks] \\n \\n \\n \\n \\n \\nPower = \\n \\nW\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:27:59,909 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:27:59,909 - DEBUG - send_request_headers.complete
+2025-06-05 20:27:59,909 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:27:59,910 - DEBUG - send_request_body.complete
+2025-06-05 20:27:59,910 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:00,861 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:28:00 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'757'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'761'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999672'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_4f3ee825a656f4bf718c9aca7c95bdf0'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b2120fada0d8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:28:00,864 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:28:00,864 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:28:00,865 - DEBUG - receive_response_body.complete
+2025-06-05 20:28:00,865 - DEBUG - response_closed.started
+2025-06-05 20:28:00,865 - DEBUG - response_closed.complete
+2025-06-05 20:28:00,865 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:28:00,868 - DEBUG - Received response from OpenAI for question 5
+2025-06-05 20:28:00,868 - INFO - ✓ Question 5 processed successfully with AI
+2025-06-05 20:28:00,868 - DEBUG -   Type: Fill in the Blank
+2025-06-05 20:28:00,868 - DEBUG -   Options: 0
+2025-06-05 20:28:00,869 - DEBUG -   Marks: 
+2025-06-05 20:28:00,869 - INFO - Processing question 6/19...
+2025-06-05 20:28:00,869 - DEBUG - Sending chunk 6 to OpenAI API...
+2025-06-05 20:28:00,874 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'01.6\', \'text\': \'01.6 \\nCalculate the resistance of the lamp when the potential difference across the lamp \\nwas 4.8 V \\nThe current in the lamp was 0.75 A \\nUse the equation: \\nresistance = potential difference\\ncurrent\\n \\n[2 marks] \\n \\n \\n \\n \\n \\nResistance = \\n \\nΩ\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:28:00,876 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:00,877 - DEBUG - send_request_headers.complete
+2025-06-05 20:28:00,877 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:28:00,877 - DEBUG - send_request_body.complete
+2025-06-05 20:28:00,877 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:01,830 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:28:01 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'742'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'750'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999668'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_9bf5d54a1243f8f9587639b7fb1f98b7'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b21215ba05d8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:28:01,832 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:28:01,833 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:28:01,834 - DEBUG - receive_response_body.complete
+2025-06-05 20:28:01,834 - DEBUG - response_closed.started
+2025-06-05 20:28:01,834 - DEBUG - response_closed.complete
+2025-06-05 20:28:01,834 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:28:01,836 - DEBUG - Received response from OpenAI for question 6
+2025-06-05 20:28:01,836 - INFO - ✓ Question 6 processed successfully with AI
+2025-06-05 20:28:01,836 - DEBUG -   Type: Fill in the Blank
+2025-06-05 20:28:01,836 - DEBUG -   Options: 0
+2025-06-05 20:28:01,836 - DEBUG -   Marks: 
+2025-06-05 20:28:01,836 - INFO - Processing question 7/19...
+2025-06-05 20:28:01,836 - DEBUG - Sending chunk 7 to OpenAI API...
+2025-06-05 20:28:01,841 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'01.7\', \'text\': \'01.7 \\nComplete the sentence. \\nChoose answers from the box. \\nEach answer may be used once, more than once or not at all. \\n[2 marks]\\ndecrease \\nincrease \\nstay the same \\n \\nIncreasing the current in a filament lamp makes the temperature \\nof the lamp \\nand the \\nresistance of the lamp \\n. \\n \\n \\n \\n \\nQuestion 1 continues on the next page \\n/8464/P/1F\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:28:01,843 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:01,843 - DEBUG - send_request_headers.complete
+2025-06-05 20:28:01,843 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:28:01,844 - DEBUG - send_request_body.complete
+2025-06-05 20:28:01,844 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:02,959 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:28:02 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'879'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'891'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999642'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_81acd2f886550692bc50750c0849ce83'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b2121bcef9d8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:28:02,960 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:28:02,961 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:28:02,979 - DEBUG - receive_response_body.complete
+2025-06-05 20:28:02,979 - DEBUG - response_closed.started
+2025-06-05 20:28:02,979 - DEBUG - response_closed.complete
+2025-06-05 20:28:02,980 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:28:02,981 - DEBUG - Received response from OpenAI for question 7
+2025-06-05 20:28:02,981 - INFO - ✓ Question 7 processed successfully with AI
+2025-06-05 20:28:02,981 - DEBUG -   Type: Fill in the Blank
+2025-06-05 20:28:02,982 - DEBUG -   Options: 3
+2025-06-05 20:28:02,982 - DEBUG -   Marks: 
+2025-06-05 20:28:02,982 - INFO - Processing question 8/19...
+2025-06-05 20:28:02,982 - DEBUG - Sending chunk 8 to OpenAI API...
+2025-06-05 20:28:02,986 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'01.8\', \'text\': \'01.8 \\nWhich graph shows the relationship between potential difference and current for a \\nfilament lamp? \\n [1 mark]\\nTick (\\uf0fc) one box. \\n for the next question \\nDO NOT WRITE ON THIS PAGE \\nANSWER IN THE SPACES PROVIDED \\n/8464/P/1F\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:28:02,988 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:02,988 - DEBUG - send_request_headers.complete
+2025-06-05 20:28:02,988 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:28:02,988 - DEBUG - send_request_body.complete
+2025-06-05 20:28:02,989 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:03,768 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:28:03 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'492'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'505'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999671'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_7a0163ae401c36c8ab64407405e73cab'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b21222ef7bd8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:28:03,770 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:28:03,770 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:28:03,771 - DEBUG - receive_response_body.complete
+2025-06-05 20:28:03,771 - DEBUG - response_closed.started
+2025-06-05 20:28:03,771 - DEBUG - response_closed.complete
+2025-06-05 20:28:03,771 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:28:03,775 - DEBUG - Received response from OpenAI for question 8
+2025-06-05 20:28:03,775 - INFO - ✓ Question 8 processed successfully with AI
+2025-06-05 20:28:03,775 - DEBUG -   Type: Short Answer
+2025-06-05 20:28:03,775 - DEBUG -   Options: 0
+2025-06-05 20:28:03,775 - DEBUG -   Marks: 
+2025-06-05 20:28:03,775 - INFO - Processing question 9/19...
+2025-06-05 20:28:03,775 - DEBUG - Sending chunk 9 to OpenAI API...
+2025-06-05 20:28:03,780 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'02\', \'text\': \'02 \\nthe diagram below shows a lift near the bottom of a building. \\nThe lift is attached by a cable to a counterweight. \\nAn electric motor moves the lift. \\nThe lift is moving up. \\nthe diagram below 02.1 \\nAs the lift moves up, how far does the counterweight move down? \\n [1 mark]\\nTick (\\uf0fc) one box. \\nA shorter distance than the lift. \\n \\n \\nThe same distance as the lift. \\n \\n \\nA longer distance than the lift.\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:28:03,783 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:03,783 - DEBUG - send_request_headers.complete
+2025-06-05 20:28:03,784 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:28:03,784 - DEBUG - send_request_body.complete
+2025-06-05 20:28:03,784 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:05,092 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:28:05 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'1096'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'1105'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999626'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_9fb3018e841647a875d000f72f928322'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b21227ea6ad8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:28:05,093 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:28:05,093 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:28:05,094 - DEBUG - receive_response_body.complete
+2025-06-05 20:28:05,094 - DEBUG - response_closed.started
+2025-06-05 20:28:05,094 - DEBUG - response_closed.complete
+2025-06-05 20:28:05,095 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:28:05,096 - DEBUG - Received response from OpenAI for question 9
+2025-06-05 20:28:05,097 - INFO - ✓ Question 9 processed successfully with AI
+2025-06-05 20:28:05,097 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:28:05,097 - DEBUG -   Options: 3
+2025-06-05 20:28:05,097 - DEBUG -   Marks: 
+2025-06-05 20:28:05,097 - INFO - Processing question 10/19...
+2025-06-05 20:28:05,097 - DEBUG - Sending chunk 10 to OpenAI API...
+2025-06-05 20:28:05,103 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'02.2\', \'text\': \'02.2 \\nWhat happens to the gravitational potential energy of the counterweight as it \\nmoves down? \\n [1 mark]\\nTick (\\uf0fc) one box. \\nIt decreases \\n \\n \\nIt stays the same \\n \\n \\nIt increases\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:28:05,105 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:05,106 - DEBUG - send_request_headers.complete
+2025-06-05 20:28:05,106 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:28:05,106 - DEBUG - send_request_body.complete
+2025-06-05 20:28:05,106 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:05,878 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:28:05 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'567'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'570'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999683'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_71b2ea247c94e67f348fb6bb4d198a2d'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b212302cc7d8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:28:05,879 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:28:05,879 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:28:05,880 - DEBUG - receive_response_body.complete
+2025-06-05 20:28:05,880 - DEBUG - response_closed.started
+2025-06-05 20:28:05,880 - DEBUG - response_closed.complete
+2025-06-05 20:28:05,880 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:28:05,883 - DEBUG - Received response from OpenAI for question 10
+2025-06-05 20:28:05,883 - INFO - ✓ Question 10 processed successfully with AI
+2025-06-05 20:28:05,883 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:28:05,883 - DEBUG -   Options: 3
+2025-06-05 20:28:05,883 - DEBUG -   Marks: 
+2025-06-05 20:28:05,883 - INFO - Processing question 11/19...
+2025-06-05 20:28:05,883 - DEBUG - Sending chunk 11 to OpenAI API...
+2025-06-05 20:28:05,887 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'02.3\', \'text\': \'02.3 \\nCalculate the change in gravitational potential energy of the lift when it \\nmoves up 4.0 m \\nThe mass of the lift is 1300 kg \\ngravitational field strength = 9.8 N/kg \\nUse the equation: \\ngravitational potential energy = mass × gravitational field strength × height \\n[2 marks]\\nChange in gravitational potential energy = \\n \\nJ \\n \\n \\n \\nQuestion 2 continues on the next page \\n/8464/P/1F\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:28:05,889 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:05,890 - DEBUG - send_request_headers.complete
+2025-06-05 20:28:05,890 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:28:05,890 - DEBUG - send_request_body.complete
+2025-06-05 20:28:05,891 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:07,044 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:28:07 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'899'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'906'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999631'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_a448ec1f0d4cac77600e9ed1c91aacb2'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b212351ff0d8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:28:07,047 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:28:07,047 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:28:07,048 - DEBUG - receive_response_body.complete
+2025-06-05 20:28:07,048 - DEBUG - response_closed.started
+2025-06-05 20:28:07,048 - DEBUG - response_closed.complete
+2025-06-05 20:28:07,048 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:28:07,051 - DEBUG - Received response from OpenAI for question 11
+2025-06-05 20:28:07,051 - INFO - ✓ Question 11 processed successfully with AI
+2025-06-05 20:28:07,051 - DEBUG -   Type: Fill in the Blank
+2025-06-05 20:28:07,051 - DEBUG -   Options: 0
+2025-06-05 20:28:07,051 - DEBUG -   Marks: 
+2025-06-05 20:28:07,051 - INFO - Processing question 12/19...
+2025-06-05 20:28:07,051 - DEBUG - Sending chunk 12 to OpenAI API...
+2025-06-05 20:28:07,056 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'02.4\', \'text\': \'02.4 \\nComplete the sentences. \\nChoose answers from the box. \\n [2 marks] \\nchemical \\nelastic potential \\ngravitational potential \\ninternal \\n kinetic \\nFriction between the brakes and the cable causes the speed of the lift to decrease. \\nAs the speed decreases, there is a decrease in the \\nenergy of the lift. \\n \\nAs the speed decreases, there is an increase in the \\n \\nenergy of the brakes.\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:28:07,057 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:07,058 - DEBUG - send_request_headers.complete
+2025-06-05 20:28:07,058 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:28:07,059 - DEBUG - send_request_body.complete
+2025-06-05 20:28:07,059 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:08,273 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:28:08 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'956'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'959'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999631'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_da98642215db564963ce74bf50ab29df'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b2123c5960d8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:28:08,274 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:28:08,275 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:28:08,276 - DEBUG - receive_response_body.complete
+2025-06-05 20:28:08,276 - DEBUG - response_closed.started
+2025-06-05 20:28:08,276 - DEBUG - response_closed.complete
+2025-06-05 20:28:08,276 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:28:08,279 - DEBUG - Received response from OpenAI for question 12
+2025-06-05 20:28:08,279 - INFO - ✓ Question 12 processed successfully with AI
+2025-06-05 20:28:08,279 - DEBUG -   Type: Fill in the Blank
+2025-06-05 20:28:08,279 - DEBUG -   Options: 5
+2025-06-05 20:28:08,279 - DEBUG -   Marks: 
+2025-06-05 20:28:08,279 - INFO - Processing question 13/19...
+2025-06-05 20:28:08,279 - DEBUG - Sending chunk 13 to OpenAI API...
+2025-06-05 20:28:08,285 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'02.5\', \'text\': \'02.5 \\nThe motor transfers different amounts of energy each time people use the lift. \\nWhich factors affect the amount of energy transferred by the motor as the lift moves? \\n[2 marks]\\nTick (\\uf0fc) two boxes. \\nThe distance moved by the lift \\n \\n \\nThe height of the building \\n \\n \\nThe length of the steel cable \\n \\n \\nThe maximum power of the motor \\n \\n \\nThe weight of the people in the lift \\n11\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:28:08,287 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:08,288 - DEBUG - send_request_headers.complete
+2025-06-05 20:28:08,288 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:28:08,288 - DEBUG - send_request_body.complete
+2025-06-05 20:28:08,288 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:09,810 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:28:09 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'1135'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'1207'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999629'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_33c8417e6982afbd6f51f6086345907c'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b212440a0cd8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:28:09,811 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:28:09,811 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:28:09,812 - DEBUG - receive_response_body.complete
+2025-06-05 20:28:09,812 - DEBUG - response_closed.started
+2025-06-05 20:28:09,812 - DEBUG - response_closed.complete
+2025-06-05 20:28:09,812 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:28:09,814 - DEBUG - Received response from OpenAI for question 13
+2025-06-05 20:28:09,815 - INFO - ✓ Question 13 processed successfully with AI
+2025-06-05 20:28:09,815 - DEBUG -   Type: Short Answer
+2025-06-05 20:28:09,815 - DEBUG -   Options: 0
+2025-06-05 20:28:09,815 - DEBUG -   Marks: 
+2025-06-05 20:28:09,815 - INFO - Processing question 14/19...
+2025-06-05 20:28:09,815 - DEBUG - Sending chunk 14 to OpenAI API...
+2025-06-05 20:28:09,820 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'02.6\', \'text\': \'02.6 \\nThe weight of the lift and the counterweight stretch the cable by 0.015 m \\nThe cable acts like a spring with a spring constant of 880 000 N/m \\nCalculate the elastic potential energy of the stretched cable. \\n \\nUse the equation: \\nelastic potential energy = 0.5 × spring constant × (extension)2 \\n[2 marks] \\n \\n \\n \\n \\n \\nElastic potential energy = \\n \\nJ\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:28:09,822 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:09,823 - DEBUG - send_request_headers.complete
+2025-06-05 20:28:09,823 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:28:09,823 - DEBUG - send_request_body.complete
+2025-06-05 20:28:09,824 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:11,140 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:28:11 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'1008'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'1011'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999640'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_f4abe33aa1838647afef39d301a29c38'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b2124dafebd8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:28:11,142 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:28:11,143 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:28:11,143 - DEBUG - receive_response_body.complete
+2025-06-05 20:28:11,143 - DEBUG - response_closed.started
+2025-06-05 20:28:11,143 - DEBUG - response_closed.complete
+2025-06-05 20:28:11,144 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:28:11,146 - DEBUG - Received response from OpenAI for question 14
+2025-06-05 20:28:11,146 - INFO - ✓ Question 14 processed successfully with AI
+2025-06-05 20:28:11,146 - DEBUG -   Type: Fill in the Blank
+2025-06-05 20:28:11,146 - DEBUG -   Options: 0
+2025-06-05 20:28:11,146 - DEBUG -   Marks: 
+2025-06-05 20:28:11,146 - INFO - Processing question 15/19...
+2025-06-05 20:28:11,146 - DEBUG - Sending chunk 15 to OpenAI API...
+2025-06-05 20:28:11,151 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'02.7\', \'text\': \'02.7 \\nA lift system using a counterweight is more efficient than a lift system that does not \\nuse a counterweight. \\nHow does having a more efficient system affect the energy transferred by the motor? \\n[1 mark]\\nTick (\\uf0fc) one box. \\nLess energy is transferred. \\n \\n \\nThe same amount of energy is transferred. \\n \\n \\nMore energy is transferred. \\n \\n \\n \\n \\n \\n \\n for the next question \\n/8464/P/1F\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:28:11,153 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:11,154 - DEBUG - send_request_headers.complete
+2025-06-05 20:28:11,154 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:28:11,154 - DEBUG - send_request_body.complete
+2025-06-05 20:28:11,154 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:12,265 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:28:12 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'895'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'899'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999629'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_edd7dc48cdcb5bb3435958157d0bda2b'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b21255fb13d8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:28:12,266 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:28:12,267 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:28:12,267 - DEBUG - receive_response_body.complete
+2025-06-05 20:28:12,267 - DEBUG - response_closed.started
+2025-06-05 20:28:12,268 - DEBUG - response_closed.complete
+2025-06-05 20:28:12,268 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:28:12,270 - DEBUG - Received response from OpenAI for question 15
+2025-06-05 20:28:12,270 - INFO - ✓ Question 15 processed successfully with AI
+2025-06-05 20:28:12,270 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:28:12,270 - DEBUG -   Options: 3
+2025-06-05 20:28:12,270 - DEBUG -   Marks: 
+2025-06-05 20:28:12,270 - INFO - Processing question 16/19...
+2025-06-05 20:28:12,271 - DEBUG - Sending chunk 16 to OpenAI API...
+2025-06-05 20:28:12,275 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'03\', \'text\': \'03 \\n \\nA teacher demonstrated that the radioactive isotope americium-241 emits \\nalpha particles. \\nthe diagram below shows the equipment used. \\nthe diagram below 03.1 \\nAn americium-241 nucleus (Am) emits an alpha particle and turns into a neptunium \\nnucleus (Np). \\nWhich is the correct nuclear equation for this decay? \\nTick (\\uf0fc) one box. \\n[1 mark]\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:28:12,276 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:12,277 - DEBUG - send_request_headers.complete
+2025-06-05 20:28:12,277 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:28:12,278 - DEBUG - send_request_body.complete
+2025-06-05 20:28:12,278 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:13,596 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:28:13 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'1016'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'1021'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999642'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_d12557f91e2e747907d56d5f39a97bac'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b2125cfb10d8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:28:13,598 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:28:13,598 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:28:13,599 - DEBUG - receive_response_body.complete
+2025-06-05 20:28:13,599 - DEBUG - response_closed.started
+2025-06-05 20:28:13,599 - DEBUG - response_closed.complete
+2025-06-05 20:28:13,599 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:28:13,601 - DEBUG - Received response from OpenAI for question 16
+2025-06-05 20:28:13,601 - INFO - ✓ Question 16 processed successfully with AI
+2025-06-05 20:28:13,601 - DEBUG -   Type: Short Answer
+2025-06-05 20:28:13,602 - DEBUG -   Options: 0
+2025-06-05 20:28:13,602 - DEBUG -   Marks: 
+2025-06-05 20:28:13,602 - INFO - Processing question 17/19...
+2025-06-05 20:28:13,602 - DEBUG - Sending chunk 17 to OpenAI API...
+2025-06-05 20:28:13,607 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'03.2\', \'text\': \'03.2 \\nWhat is the furthest distance that alpha radiation can travel in air? \\n \\n \\nTick (\\uf0fc) one box. \\n[1 mark]\\nA few millimetres \\n \\n \\nA few centimetres \\n \\n \\nA few metres\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:28:13,608 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:13,609 - DEBUG - send_request_headers.complete
+2025-06-05 20:28:13,609 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:28:13,609 - DEBUG - send_request_body.complete
+2025-06-05 20:28:13,609 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:14,518 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:28:14 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'598'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'602'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999686'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_495d0ab1a042bb94f72415cd2a81851a'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b212654e58d8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:28:14,520 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:28:14,521 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:28:14,521 - DEBUG - receive_response_body.complete
+2025-06-05 20:28:14,521 - DEBUG - response_closed.started
+2025-06-05 20:28:14,522 - DEBUG - response_closed.complete
+2025-06-05 20:28:14,522 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:28:14,524 - DEBUG - Received response from OpenAI for question 17
+2025-06-05 20:28:14,524 - INFO - ✓ Question 17 processed successfully with AI
+2025-06-05 20:28:14,524 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:28:14,524 - DEBUG -   Options: 3
+2025-06-05 20:28:14,525 - DEBUG -   Marks: 
+2025-06-05 20:28:14,525 - INFO - Processing question 18/19...
+2025-06-05 20:28:14,525 - DEBUG - Sending chunk 18 to OpenAI API...
+2025-06-05 20:28:14,528 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'03.3\', \'text\': \'03.3 \\nThe teacher placed a piece of paper between the americium-241 and the \\nradiation detector. \\nThe reading on the count rate meter decreased by a large amount. \\nWhy does the decreased reading show that americium-241 emits alpha radiation? \\n \\n \\nTick (\\uf0fc) one box. \\n[1 mark]\\nPaper stops alpha radiation. \\n \\n \\nPaper stops all types of radiation. \\n \\n \\nPaper stops beta and gamma radiation. \\n \\n \\n \\n \\n \\n \\n \\nThe teacher replaced the americium-241 with a source of beta radiation.\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:28:14,533 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:14,533 - DEBUG - send_request_headers.complete
+2025-06-05 20:28:14,534 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:28:14,534 - DEBUG - send_request_body.complete
+2025-06-05 20:28:14,534 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:15,644 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:28:15 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'783'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'793'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999606'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'5ms'), (b'x-request-id', b'req_cff67a456a3f055242d54aa447221d30'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b2126b1bfbd8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:28:15,644 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:28:15,645 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:28:15,645 - DEBUG - receive_response_body.complete
+2025-06-05 20:28:15,645 - DEBUG - response_closed.started
+2025-06-05 20:28:15,645 - DEBUG - response_closed.complete
+2025-06-05 20:28:15,645 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:28:15,646 - DEBUG - Received response from OpenAI for question 18
+2025-06-05 20:28:15,646 - INFO - ✓ Question 18 processed successfully with AI
+2025-06-05 20:28:15,647 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:28:15,647 - DEBUG -   Options: 3
+2025-06-05 20:28:15,647 - DEBUG -   Marks: 
+2025-06-05 20:28:15,647 - INFO - Processing question 19/19...
+2025-06-05 20:28:15,647 - DEBUG - Sending chunk 19 to OpenAI API...
+2025-06-05 20:28:15,649 - DEBUG - Request options: {'method': 'post', 'url': '/chat/completions', 'files': None, 'json_data': {'messages': [{'role': 'user', 'content': '\nAnalyze this exam question text and extract the information. Be very careful to:\n1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question\n2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")\n3. Identify the question type:\n   - "Fill in the Blank" if the question contains blanks represented by underscores (____) \n   - "Multiple Choice" if it has options to choose from\n   - "Short Answer" for other types\n4. For fill-in-the-blank questions, preserve all underscores that represent blanks\n5. Extract individual options if it\'s multiple choice\n6. Multiple choice options MUST NOT be included in the question text\n\nText: {\'question_number\': \'03.4\', \'text\': \'03.4 \\nWhich symbol represents a beta particle? \\n[1 mark]\\nTick (\\uf0fc) one box. \\ne\\n–1\\ne\\n0 \\n \\n \\n \\ne\\n–1\\n–1 \\n \\n \\n \\n \\ne\\n–1 \\n \\n \\n \\n \\n \\n \\nQuestion 3 continues on the next page\'}\n\nReturn ONLY valid JSON in this exact format:\n{\n    "question": "clean question text without numbers but preserving blanks (____)",\n    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",\n    "options": ["option1", "option2", "option3"] or [],\n}\n'}], 'model': 'gpt-3.5-turbo', 'max_tokens': 500, 'temperature': 0}}
+2025-06-05 20:28:15,650 - DEBUG - send_request_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:15,650 - DEBUG - send_request_headers.complete
+2025-06-05 20:28:15,650 - DEBUG - send_request_body.started request=<Request [b'POST']>
+2025-06-05 20:28:15,650 - DEBUG - send_request_body.complete
+2025-06-05 20:28:15,650 - DEBUG - receive_response_headers.started request=<Request [b'POST']>
+2025-06-05 20:28:16,566 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Thu, 05 Jun 2025 19:28:16 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'access-control-expose-headers', b'X-Request-ID'), (b'openai-organization', b'revisepal'), (b'openai-processing-ms', b'595'), (b'openai-version', b'2020-10-01'), (b'x-envoy-upstream-service-time', b'601'), (b'x-ratelimit-limit-requests', b'5000'), (b'x-ratelimit-limit-tokens', b'4000000'), (b'x-ratelimit-remaining-requests', b'4999'), (b'x-ratelimit-remaining-tokens', b'3999680'), (b'x-ratelimit-reset-requests', b'12ms'), (b'x-ratelimit-reset-tokens', b'4ms'), (b'x-request-id', b'req_3f99e82f9ca411f24b70813768e8c611'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'cf-cache-status', b'DYNAMIC'), (b'X-Content-Type-Options', b'nosniff'), (b'Server', b'cloudflare'), (b'CF-RAY', b'94b212720ca2d8b6-LHR'), (b'Content-Encoding', b'gzip'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-06-05 20:28:16,568 - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-05 20:28:16,569 - DEBUG - receive_response_body.started request=<Request [b'POST']>
+2025-06-05 20:28:16,570 - DEBUG - receive_response_body.complete
+2025-06-05 20:28:16,570 - DEBUG - response_closed.started
+2025-06-05 20:28:16,570 - DEBUG - response_closed.complete
+2025-06-05 20:28:16,570 - DEBUG - HTTP Request: POST https://api.openai.com/v1/chat/completions "200 OK"
+2025-06-05 20:28:16,573 - DEBUG - Received response from OpenAI for question 19
+2025-06-05 20:28:16,573 - INFO - ✓ Question 19 processed successfully with AI
+2025-06-05 20:28:16,573 - DEBUG -   Type: Multiple Choice
+2025-06-05 20:28:16,573 - DEBUG -   Options: 3
+2025-06-05 20:28:16,573 - DEBUG -   Marks: 
+2025-06-05 20:28:16,574 - INFO - AI processing complete: 19 AI successes, 0 fallbacks
+2025-06-05 20:28:16,574 - INFO - ✓ Processed 19 questions
+2025-06-05 20:28:16,574 - INFO - Step 5: Validating question data...
+2025-06-05 20:28:16,574 - INFO - Validating 19 questions...
+2025-06-05 20:28:16,574 - DEBUG - Question 1 validation: ✓
+2025-06-05 20:28:16,574 - DEBUG - Question 2 validation: ✓
+2025-06-05 20:28:16,574 - DEBUG - Question 3 validation: ✓
+2025-06-05 20:28:16,574 - DEBUG - Question 4 validation: ✓
+2025-06-05 20:28:16,575 - DEBUG - Question 5 validation: ✓
+2025-06-05 20:28:16,575 - DEBUG - Question 6 validation: ✓
+2025-06-05 20:28:16,575 - DEBUG - Question 7 validation: ✓
+2025-06-05 20:28:16,575 - DEBUG - Question 8 validation: ✓
+2025-06-05 20:28:16,575 - DEBUG - Question 9 validation: ✓
+2025-06-05 20:28:16,576 - DEBUG - Question 10 validation: ✓
+2025-06-05 20:28:16,576 - DEBUG - Question 11 validation: ✓
+2025-06-05 20:28:16,576 - DEBUG - Question 12 validation: ✓
+2025-06-05 20:28:16,576 - DEBUG - Question 13 validation: ✓
+2025-06-05 20:28:16,576 - DEBUG - Question 14 validation: ✓
+2025-06-05 20:28:16,576 - DEBUG - Question 15 validation: ✓
+2025-06-05 20:28:16,576 - DEBUG - Question 16 validation: ✓
+2025-06-05 20:28:16,576 - DEBUG - Question 17 validation: ✓
+2025-06-05 20:28:16,577 - DEBUG - Question 18 validation: ✓
+2025-06-05 20:28:16,577 - DEBUG - Question 19 validation: ✓
+2025-06-05 20:28:16,577 - INFO - Validation complete: 19 questions validated, 0 validation errors
+2025-06-05 20:28:16,577 - INFO - ✓ Validated 19 questions
+2025-06-05 20:28:16,577 - INFO - ✅ PDF processing completed successfully!
+2025-06-05 20:28:16,584 - INFO - 127.0.0.1 - - [05/Jun/2025 20:28:16] "POST /api/process-pdf HTTP/1.1" 200 -
+2025-06-05 20:28:16,605 - DEBUG - NativeEvent(path="/Users/joshsparkes/Developer/Past-Paper-Parser/backend/uploads/June.pdf", inode=147647964, flags=10200, id=101993525): is_file, is_removed
+2025-06-05 20:28:16,605 - DEBUG - queue_event FileDeletedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/uploads/June.pdf', dest_path='', event_type='deleted', is_directory=False, is_synthetic=False)
+2025-06-05 20:28:16,605 - DEBUG - queue_event DirModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/uploads', dest_path='', event_type='modified', is_directory=True, is_synthetic=False)
+2025-06-05 20:30:48,651 - DEBUG - NativeEvent(path="/Users/joshsparkes/Developer/Past-Paper-Parser/backend/pdf_processor.py", inode=147645183, flags=11400, id=102005433): is_file, is_inode_meta_mod, is_modified
+2025-06-05 20:30:48,652 - DEBUG - queue_event FileModifiedEvent(src_path='/Users/joshsparkes/Developer/Past-Paper-Parser/backend/pdf_processor.py', dest_path='', event_type='modified', is_directory=False, is_synthetic=False)
+2025-06-05 20:30:48,652 - INFO -  * Detected change in '/Users/joshsparkes/Developer/Past-Paper-Parser/backend/pdf_processor.py', reloading
+2025-06-05 20:30:49,123 - INFO -  * Restarting with watchdog (fsevents)
+2025-06-05 20:30:49,776 - INFO - Initializing PDFProcessor...
+2025-06-05 20:30:49,780 - DEBUG - load_ssl_context verify=True cert=None trust_env=True http2=False
+2025-06-05 20:30:49,783 - DEBUG - load_verify_locations cafile='/Users/joshsparkes/.pyenv/versions/3.12.4/lib/python3.12/site-packages/certifi/cacert.pem'
+2025-06-05 20:30:49,792 - INFO - OpenAI client initialized successfully
+2025-06-05 20:30:49,796 - WARNING -  * Debugger is active!
+2025-06-05 20:30:49,803 - INFO -  * Debugger PIN: 163-922-767

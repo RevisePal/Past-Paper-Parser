@@ -11,10 +11,7 @@ from openai import OpenAI
 logging.basicConfig(
     level=logging.DEBUG,  # <- this is the fix
     format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler("pdf_processor.log"),
-        logging.StreamHandler()
-    ]
+    handlers=[logging.FileHandler("pdf_processor.log"), logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
@@ -105,10 +102,12 @@ class PDFProcessor:
         original_length = len(text)
 
         text = text.replace("\u00a0", " ")
-        text = re.sub(r'[✓]|\(\)', '', text)
+        text = re.sub(r"[✓]|\(\)", "", text)
         text = re.sub(r"Figure\s*\d+", "the diagram below", text, flags=re.IGNORECASE)
         text = re.sub(r"\bTable\s*\d+", "the table below", text, flags=re.IGNORECASE)
         logger.debug("Replaced non-breaking spaces")
+
+        text = self._preserve_fill_in_blanks(text)
 
         patterns_to_remove = [
             r"do\s*not\s*write\s*out\s*side\s*the\s*box",
@@ -143,17 +142,57 @@ class PDFProcessor:
         )
         return text
 
+    def _preserve_fill_in_blanks(self, text: str) -> str:
+        logger.debug("Preserving fill-in-the-blank patterns...")
+
+        # Replace sequences of underscores that likely represent blanks with a placeholder
+        # This preserves blanks while allowing us to clean other underscores later
+        text = re.sub(r"_{3,}", "<<BLANK>>", text)
+
+        # Also handle spaced underscores like "_ _ _ _"
+        text = re.sub(r"(?:_\s+){2,}_?", "<<BLANK>>", text)
+
+        # Handle single underscores that are clearly blanks (surrounded by spaces or punctuation)
+        text = re.sub(r"(?<=\s)_(?=\s)", "<<BLANK>>", text)
+        text = re.sub(r"(?<=\s)_(?=[.,;:])", "<<BLANK>>", text)
+        text = re.sub(r"(?<=[.,;:])\s*_(?=\s)", "<<BLANK>>", text)
+
+        # Clean up any remaining problematic underscores (like those in file paths, codes, etc.)
+        # but preserve our placeholders
+        text = re.sub(r"(?<!<)_+(?!>)", "", text)
+
+        # Restore the blanks
+        text = text.replace("<<BLANK>>", "____")
+
+        logger.debug("Fill-in-the-blank preservation complete")
+        return text
+
+    def _detect_question_type(self, text: str) -> str:
+        text_lower = text.lower()
+
+        # Check for fill-in-the-blank indicators
+        if "____" in text or re.search(r"_{3,}", text):
+            return "Fill in the Blank"
+
+        # Check for multiple choice indicators
+        if any(
+            phrase in text_lower for phrase in ["tick", "choose", "select", "circle"]
+        ):
+            return "Multiple Choice"
+
+        # Check for options pattern (A), (B), (C) or A. B. C.
+        if re.search(r"\([A-E]\)|\b[A-E]\.", text):
+            return "Multiple Choice"
+
+        # Default to short answer
+        return "Short Answer"
+
     def _segment_questions(self, text: str) -> List[Dict]:
         logger.info("Segmenting text into question chunks...")
 
-        # Normalize question numbers with flexible spacing:
-        # 0 2 . 1  → 02.1
         text = re.sub(r"0\s*(\d)\s*\.\s*(\d)", r"0\1.\2", text)
-
-        # Normalize base questions without trailing .x (avoid touching already normalized .x)
         text = re.sub(r"\b0\s*(\d)(?!\.\d)\b", r"0\1", text)
 
-        # Extract all question chunks (includes 01, 01.1, 01.2 etc)
         question_pattern = r"(0\d(?:\.\d)?[\s\S]*?)(?=\n\s*0\d(?:\.\d)?|\Z)"
         chunks = re.findall(question_pattern, text)
 
@@ -168,36 +207,32 @@ class PDFProcessor:
                 continue
 
             current_chunk = chunks[i].strip()
-
-            # Extract question number from current chunk start
             current_qnum_match = re.match(r"^(0\d(?:\.\d)?)", current_chunk)
             current_qnum = current_qnum_match.group(1) if current_qnum_match else None
 
-            # Check if next chunk exists and can be merged
             if i + 1 < len(chunks):
                 next_chunk = chunks[i + 1].strip()
                 next_qnum_match = re.match(r"^(0\d(?:\.\d)?)", next_chunk)
                 next_qnum = next_qnum_match.group(1) if next_qnum_match else None
 
-                # Merge only if next chunk is the '.1' sub-question of current base question
                 if current_qnum and next_qnum:
                     base_current = current_qnum.split(".")[0]
                     base_next = next_qnum.split(".")[0]
 
                     if (base_current == base_next) and (next_qnum.endswith(".1")):
-                        # Merge current and next chunk
                         merged_text = f"{current_chunk} {next_chunk}"
-                        merged_chunks.append({"question_number": base_current, "text": merged_text})
+                        merged_chunks.append(
+                            {"question_number": base_current, "text": merged_text}
+                        )
                         skip_next = True
                         continue
 
-            # If no merge happened, just add current chunk as is
-            merged_chunks.append({"question_number": current_qnum, "text": current_chunk})
+            merged_chunks.append(
+                {"question_number": current_qnum, "text": current_chunk}
+            )
 
         logger.info(f"After merging, total question chunks: {len(merged_chunks)}")
-
         return merged_chunks
-
 
     def _structure_with_ai(self, chunks: List[str]) -> List[Dict]:
         logger.info(f"Processing {len(chunks)} chunks with AI...")
@@ -215,16 +250,20 @@ class PDFProcessor:
 Analyze this exam question text and extract the information. Be very careful to:
 1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question
 2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")
-3. Identify if it's Multiple Choice (has options to choose from) or Short Answer
-4. Extract individual options if it's multiple choice
-5. Multiple choice options MUST NOT be included in the question text.
+3. Identify the question type:
+   - "Fill in the Blank" if the question contains blanks represented by underscores (____) 
+   - "Multiple Choice" if it has options to choose from
+   - "Short Answer" for other types
+4. For fill-in-the-blank questions, preserve all underscores that represent blanks
+5. Extract individual options if it's multiple choice
+6. Multiple choice options MUST NOT be included in the question text
 
 Text: {chunk}
 
 Return ONLY valid JSON in this exact format:
 {{
-    "question": "clean question text without numbers",
-    "type": "Multiple Choice" or "Short Answer",
+    "question": "clean question text without numbers but preserving blanks (____)",
+    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",
     "options": ["option1", "option2", "option3"] or [],
 }}
 """
@@ -296,10 +335,7 @@ Return ONLY valid JSON in this exact format:
         marks_match = re.search(r"\[(\d+)\s*marks?\]", question_text, re.IGNORECASE)
         marks = marks_match.group(1) if marks_match else ""
 
-        if any(phrase in full_text.lower() for phrase in ["tick", "choose", "select"]):
-            question_type = "Multiple Choice"
-        else:
-            question_type = "Short Answer"
+        question_type = self._detect_question_type(question_text)
 
         logger.debug(f"Fallback result: Type={question_type}, Marks={marks}")
 
