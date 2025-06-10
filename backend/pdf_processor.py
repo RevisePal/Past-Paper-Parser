@@ -83,7 +83,7 @@ class PDFProcessor:
         logger.info(f"PDF opened successfully. Total pages: {total_pages}")
 
         full_text = ""
-        for page_num in range(1, 13):
+        for page_num in range(1, 5):
             page = doc[page_num]
             page_text = page.get_text()
             full_text += page_text
@@ -102,11 +102,10 @@ class PDFProcessor:
         original_length = len(text)
 
         text = text.replace("\u00a0", " ")
-        text = re.sub(r"[✓]|\(\)", "", text)
+        text = re.sub(r'[✓]|\(\)', '', text)
         text = re.sub(r"Figure\s*\d+", "the diagram below", text, flags=re.IGNORECASE)
         text = re.sub(r"\bTable\s*\d+", "the table below", text, flags=re.IGNORECASE)
         logger.debug("Replaced non-breaking spaces")
-
         text = self._preserve_fill_in_blanks(text)
 
         patterns_to_remove = [
@@ -142,49 +141,69 @@ class PDFProcessor:
         )
         return text
 
+
     def _preserve_fill_in_blanks(self, text: str) -> str:
         logger.debug("Preserving fill-in-the-blank patterns...")
-
-        # Replace sequences of underscores that likely represent blanks with a placeholder
-        # This preserves blanks while allowing us to clean other underscores later
-        text = re.sub(r"_{3,}", "<<BLANK>>", text)
-
-        # Also handle spaced underscores like "_ _ _ _"
-        text = re.sub(r"(?:_\s+){2,}_?", "<<BLANK>>", text)
-
-        # Handle single underscores that are clearly blanks (surrounded by spaces or punctuation)
-        text = re.sub(r"(?<=\s)_(?=\s)", "<<BLANK>>", text)
-        text = re.sub(r"(?<=\s)_(?=[.,;:])", "<<BLANK>>", text)
-        text = re.sub(r"(?<=[.,;:])\s*_(?=\s)", "<<BLANK>>", text)
-
-        # Clean up any remaining problematic underscores (like those in file paths, codes, etc.)
-        # but preserve our placeholders
-        text = re.sub(r"(?<!<)_+(?!>)", "", text)
-
-        # Restore the blanks
-        text = text.replace("<<BLANK>>", "____")
-
+        
+        # First check if this is actually a fill-the-gap question
+        if not self.is_fill_the_gap_question(text):
+            # If not, clean ALL underscores (they're not blanks)
+            text = re.sub(r"_+", "", text)
+            return text
+        
+        # Only process underscores if it's a fill-the-gap question
+        # Replace sequences of underscores with consistent blanks
+        text = re.sub(r"_{3,}", "____", text)
+        
+        # Handle spaced underscores like "_ _ _ _"
+        text = re.sub(r"(?:_\s+){2,}_?", "____", text)
+        
+        # Handle single underscores in specific contexts
+        text = re.sub(r"(?<=\s)_(?=\s)", "____", text)      # Between spaces
+        text = re.sub(r"(?<=\s)_(?=[.,;:])", "____", text)  # Before punctuation
+        text = re.sub(r"(?<=[.,;:])\s*_(?=\s)", "____", text)  # After punctuation
+        
         logger.debug("Fill-in-the-blank preservation complete")
         return text
+
+    def is_fill_the_gap_question(self, text: str) -> bool:
+        logger.debug("Raw question text before fill-the-gap check:\n%s", text)
+        logger.debug("Checking if question is fill-the-gap...")
+        logger.debug(f"Checking gap phrases in: '{text[:50]}...'")
+        gap_phrases = [
+            "complete the sentence", 
+            "fill in the blank", 
+            "fill in the gap", 
+            "choose answers from the box", 
+            "write the correct word",
+            "select the correct word",
+            "choose the correct word",
+            "write down the correct word",
+            "write the missing word",
+            "choose from the box",
+            "select from the box",
+            "fill the gaps",
+            "fill the blanks",
+        ]
+
+        text_lower = text.lower()
+        return any(phrase in text_lower for phrase in gap_phrases)
+
 
     def _detect_question_type(self, text: str) -> str:
         text_lower = text.lower()
 
-        # Check for fill-in-the-blank indicators
-        if "____" in text or re.search(r"_{3,}", text):
+        # Check for fill-in-the-blank indicators (only by phrases now)
+        if self.is_fill_the_gap_question(text):
             return "Fill in the Blank"
 
-        # Check for multiple choice indicators
-        if any(
-            phrase in text_lower for phrase in ["tick", "choose", "select", "circle"]
-        ):
+        # Rest of the method remains the same...
+        if any(phrase in text_lower for phrase in ["tick", "choose", "select", "circle"]):
             return "Multiple Choice"
 
-        # Check for options pattern (A), (B), (C) or A. B. C.
         if re.search(r"\([A-E]\)|\b[A-E]\.", text):
             return "Multiple Choice"
 
-        # Default to short answer
         return "Short Answer"
 
     def _segment_questions(self, text: str) -> List[Dict]:
@@ -234,7 +253,7 @@ class PDFProcessor:
         logger.info(f"After merging, total question chunks: {len(merged_chunks)}")
         return merged_chunks
 
-    def _structure_with_ai(self, chunks: List[str]) -> List[Dict]:
+    def _structure_with_ai(self, chunks: List[Dict]) -> List[Dict]:
         logger.info(f"Processing {len(chunks)} chunks with AI...")
         questions = []
         ai_success_count = 0
@@ -247,26 +266,23 @@ class PDFProcessor:
                 logger.debug(f"Sending chunk {i} to OpenAI API...")
 
                 prompt = f"""
-Analyze this exam question text and extract the information. Be very careful to:
-1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question
-2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")
-3. Identify the question type:
-   - "Fill in the Blank" if the question contains blanks represented by underscores (____) 
-   - "Multiple Choice" if it has options to choose from
-   - "Short Answer" for other types
-4. For fill-in-the-blank questions, preserve all underscores that represent blanks
-5. Extract individual options if it's multiple choice
-6. Multiple choice options MUST NOT be included in the question text
+    Analyze this exam question text and extract the information. Be very careful to:
+    1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question
+    2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")
+    3. For fill-in-the-blank questions, preserve all underscores that represent blanks
+    4. Multiple choice options MUST NOT be included in the question text
+    5. ONLY preserve content after the question if it contains a mathematical equation (in \[ \] or $$) else remove it.
+    6. Do NOT include the content of tables or graphs in the question text.
 
-Text: {chunk}
+    Text: {chunk}
 
-Return ONLY valid JSON in this exact format:
-{{
-    "question": "clean question text without numbers but preserving blanks (____)",
-    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",
-    "options": ["option1", "option2", "option3"] or [],
-}}
-"""
+    Return ONLY valid JSON in this exact format:
+    {{
+        "question": "clean question text without numbers but preserving blanks (____)",
+        "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",
+        "options": ["option1", "option2", "option3"] or [],
+    }}
+    """
 
                 response = self.client.chat.completions.create(
                     model="gpt-3.5-turbo",
@@ -276,24 +292,35 @@ Return ONLY valid JSON in this exact format:
                 )
 
                 logger.debug(f"Received response from OpenAI for question {i}")
-
                 result = json.loads(response.choices[0].message.content)
 
+                # === STRICT VALIDATION ADDED HERE ===
+                question_text = result.get("question", "").strip()
+                question_type = result.get("type", "").strip()
+                
+                # Override AI if it incorrectly labeled as fill-in-the-blank
+                if question_type == "Fill in the Blank" and not self.is_fill_the_gap_question(question_text):
+                    question_type = "Short Answer"
+                    logger.debug(f"Overriding AI classification for question {i} - not a true fill-in-the-blank")
+
+                # Remove blanks for non-fill-the-blank questions
+                if question_type != "Fill in the Blank":
+                    question_text = re.sub(r"_+", "", question_text)
+
                 question_data = {
-                    "question": result.get("question", "").strip(),
+                    "question": question_text,
                     "options": result.get("options", []),
                     "correct_answer": "",
                     "marks": result.get("marks", ""),
-                    "type": result.get("type", "Short Answer"),
+                    "type": question_type,
                 }
 
                 questions.append(question_data)
                 ai_success_count += 1
 
                 logger.info(f"✓ Question {i} processed successfully with AI")
-                logger.debug(f"  Type: {question_data['type']}")
+                logger.debug(f"  Final Type: {question_data['type']}")
                 logger.debug(f"  Options: {len(question_data['options'])}")
-                logger.debug(f"  Marks: {question_data['marks']}")
 
             except Exception as e:
                 logger.warning(f"⚠️ AI parsing failed for question {i}: {e}")

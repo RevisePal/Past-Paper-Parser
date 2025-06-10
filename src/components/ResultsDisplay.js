@@ -51,7 +51,13 @@ const ResultsDisplay = ({ results, onReset }) => {
             </div>
 
             <div className="question-text">
-              <p>{question.question || "No question text found"}</p>
+              {/*
+                WARNING: This uses dangerouslySetInnerHTML. Make sure the backend sanitizes HTML to prevent XSS.
+              */}
+              <div
+                className="question-html"
+                dangerouslySetInnerHTML={{ __html: question.question || "<em>No question text found</em>" }}
+              />
             </div>
 
             {question.options && question.options.length > 0 && (
