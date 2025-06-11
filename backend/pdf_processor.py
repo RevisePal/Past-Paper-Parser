@@ -266,15 +266,17 @@ class PDFProcessor:
                 logger.debug(f"Sending chunk {i} to OpenAI API...")
 
                 prompt = f"""
+    You are a formatter for exam questions.
+
     Analyze this exam question text and extract the information. Be very careful to:
     1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question
     2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")
-    3. For fill-in-the-blank questions, preserve all underscores that represent blanks
-    4. Multiple choice options MUST NOT be included in the question text
-    5. ONLY preserve content after the question if it contains a mathematical equation (in \[ \] or $$) else remove it.
-    6. Do NOT include the content of tables or graphs in the question text.
+    3. For fill-in-the-blank questions, preserve all underscores that represent blanks (____)
+    4. Multiple choice options MUST NOT be included in the question text.
+    5. Do NOT include the content of tables or graphs in the question text.
+    6. Use HTML <br> tags for new lines — **do NOT use \\n**. Add <br> wherever a line break would improve clarity or match the source formatting.
 
-    Text: {chunk}
+    Now process the following text: {chunk}
 
     Return ONLY valid JSON in this exact format:
     {{
@@ -293,6 +295,8 @@ class PDFProcessor:
 
                 logger.debug(f"Received response from OpenAI for question {i}")
                 result = json.loads(response.choices[0].message.content)
+                logger.debug("🔍 AI FORMATTED OUTPUT:")
+                logger.debug(json.dumps(result, indent=2))
 
                 # === STRICT VALIDATION ADDED HERE ===
                 question_text = result.get("question", "").strip()
@@ -359,9 +363,6 @@ class PDFProcessor:
 
         question_text = " ".join(question_words).strip()
 
-        marks_match = re.search(r"\[(\d+)\s*marks?\]", question_text, re.IGNORECASE)
-        marks = marks_match.group(1) if marks_match else ""
-
         question_type = self._detect_question_type(question_text)
 
         logger.debug(f"Fallback result: Type={question_type}, Marks={marks}")
@@ -370,7 +371,6 @@ class PDFProcessor:
             "question": question_text,
             "options": [],
             "correct_answer": "",
-            "marks": marks,
             "type": question_type,
         }
 
@@ -394,7 +394,6 @@ class PDFProcessor:
                             "question": q_data.get("question", ""),
                             "options": q_data.get("options", []),
                             "correct_answer": q_data.get("correct_answer", ""),
-                            "marks": q_data.get("marks", ""),
                             "type": q_data.get("type", "Unknown"),
                         }
                     )

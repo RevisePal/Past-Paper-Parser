@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import "./ResultsDisplay.css";
 
 const ResultsDisplay = ({ results, onReset }) => {
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [editedText, setEditedText] = useState("");
   const downloadJSON = () => {
     const dataStr = JSON.stringify(results, null, 2);
     const dataUri =
@@ -51,13 +53,54 @@ const ResultsDisplay = ({ results, onReset }) => {
             </div>
 
             <div className="question-text">
-              {/*
-                WARNING: This uses dangerouslySetInnerHTML. Make sure the backend sanitizes HTML to prevent XSS.
-              */}
-              <div
-                className="question-html"
-                dangerouslySetInnerHTML={{ __html: question.question || "<em>No question text found</em>" }}
-              />
+            {editingIndex === index ? (
+  <div className="edit-question-block">
+    <textarea
+      value={editedText}
+      onChange={(e) => setEditedText(e.target.value)}
+      rows={5}
+      className="question-editor"
+    />
+    <button
+      onClick={() => {
+        // Update the question locally (not persisted beyond state)
+        results.questions[index].question = editedText;
+        setEditingIndex(null);
+      }}
+      className="save-button"
+    >
+      Save
+    </button>
+    <button
+      onClick={() => setEditingIndex(null)}
+      className="cancel-button"
+    >
+      Cancel
+    </button>
+  </div>
+) : (
+  <>
+    <div
+      className="question-html"
+      dangerouslySetInnerHTML={{
+        __html: question.question || "<em>No question text found</em>",
+      }}
+    />
+    <button
+      onClick={() => {
+        setEditingIndex(index);
+        setEditedText(
+          question.question
+            .replace(/<[^>]+>/g, "") // Remove HTML tags for plain editing
+            .trim()
+        );
+      }}
+      className="edit-button"
+    >
+      Edit Question
+    </button>
+  </>
+)}
             </div>
 
             {question.options && question.options.length > 0 && (
