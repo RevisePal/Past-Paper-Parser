@@ -124,10 +124,12 @@ const ResultsDisplay = ({ results, onReset }) => {
             {editingIndex === index ? (
   <div className="edit-question-block">
     <div className="html-toolbar">
-      <button onClick={() => handleInsertHtmlTag('<b>', '</b>')} title="Bold"><b>B</b></button>
-      <button onClick={() => handleInsertHtmlTag('<i>', '</i>')} title="Italic">I</button>
-      <button onClick={() => handleInsertHtmlTag('<br>', '')} title="Line Break">&lt;br&gt;</button>
-    </div>
+  <button onClick={() => handleInsertHtmlTag('<b>', '</b>')} title="Bold"><b>B</b></button>
+  <button onClick={() => handleInsertHtmlTag('<i>', '</i>')} title="Italic">I</button>
+  <button onClick={() => handleInsertHtmlTag('<sub>', '</sub>')} title="Subscript">X₂</button>
+  <button onClick={() => handleInsertHtmlTag('<sup>', '</sup>')} title="Superscript">X²</button>
+  <button onClick={() => handleInsertHtmlTag('<br>', '')} title="Line Break">&lt;br&gt;</button>
+</div>
     <textarea
       ref={textareaRef}
       value={editedText}
@@ -184,23 +186,25 @@ const ResultsDisplay = ({ results, onReset }) => {
                     <li
                       key={optIndex}
                       className={
-                        option === question.correct_answer
+                        option === question.answer
                           ? "correct-answer"
                           : ""
                       }
                     >
-                      {option}
-                      {option === question.correct_answer && " ✓"}
+                        <span
+    dangerouslySetInnerHTML={{ __html: option }}
+  />
+                      {option === question.answer && " ✓"}
                     </li>
                   ))}
                 </ul>
               </div>
             )}
 
-            {question.correct_answer && (
+            {question.answer && (
               <div className="correct-answer-section">
                 <h4>Correct Answer:</h4>
-                <p className="answer">{question.correct_answer}</p>
+                <p className="answer">{question.answer}</p>
               </div>
             )}
 
