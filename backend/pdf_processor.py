@@ -15,14 +15,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 class Question(BaseModel):
     question: str
     options: List[str] = []
     correct_answer: str = ""
     marks: str = ""
     type: str = "Multiple Choice"
-
 
 class PDFProcessor:
     def __init__(self):
@@ -83,7 +81,7 @@ class PDFProcessor:
         logger.info(f"PDF opened successfully. Total pages: {total_pages}")
 
         full_text = ""
-        for page_num in range(1, 5):
+        for page_num in range(1, 10):
             page = doc[page_num]
             page_text = page.get_text()
             full_text += page_text
@@ -103,8 +101,8 @@ class PDFProcessor:
 
         text = text.replace("\u00a0", " ")
         text = re.sub(r'[✓]|\(\)', '', text)
-        text = re.sub(r"Figure\s*\d+", "the diagram below", text, flags=re.IGNORECASE)
-        text = re.sub(r"\bTable\s*\d+", "the table below", text, flags=re.IGNORECASE)
+        text = re.sub(r"Figure\s*\d+", "The diagram below", text, flags=re.IGNORECASE)
+        text = re.sub(r"\bTable\s*\d+", "The table below", text, flags=re.IGNORECASE)
         logger.debug("Replaced non-breaking spaces")
         text = self._preserve_fill_in_blanks(text)
 
@@ -140,7 +138,6 @@ class PDFProcessor:
             f"Text cleaning complete. Reduced from {original_length} to {cleaned_length} characters ({original_length - cleaned_length} removed)"
         )
         return text
-
 
     def _preserve_fill_in_blanks(self, text: str) -> str:
         logger.debug("Preserving fill-in-the-blank patterns...")
@@ -188,7 +185,6 @@ class PDFProcessor:
 
         text_lower = text.lower()
         return any(phrase in text_lower for phrase in gap_phrases)
-
 
     def _detect_question_type(self, text: str) -> str:
         text_lower = text.lower()
@@ -253,6 +249,21 @@ class PDFProcessor:
         logger.info(f"After merging, total question chunks: {len(merged_chunks)}")
         return merged_chunks
 
+    def _postprocess_question_text(self, text: str) -> str:
+        # Remove page numbers, headers, footers, and other known extraneous patterns
+        patterns = [
+            r"Page \\d+ of \\d+",
+            r"Turn over",
+            r"Copyright.*",
+            r"IB/M/\\d+/\\w+",
+            r"\\*\\d+\\*",
+            r"^\\s*\\d+\\s*$",  # Standalone numbers
+            r"^\\s*\\d+\\.\\d*\\s*$",  # Standalone question numbers
+        ]
+        for pattern in patterns:
+            text = re.sub(pattern, "", text, flags=re.IGNORECASE | re.MULTILINE)
+        return text.strip()
+
     def _structure_with_ai(self, chunks: List[Dict]) -> List[Dict]:
         logger.info(f"Processing {len(chunks)} chunks with AI...")
         questions = []
@@ -261,49 +272,52 @@ class PDFProcessor:
 
         for i, chunk in enumerate(chunks, 1):
             logger.info(f"Processing question {i}/{len(chunks)}...")
-
             try:
                 logger.debug(f"Sending chunk {i} to OpenAI API...")
 
                 prompt = f"""
-    You are a formatter for exam questions.
+You are a formatter for exam questions.
 
-    Analyze this exam question text and extract the information. Be very careful to:
+    Analyse this exam question text and extract the information. Be very careful to:
     1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question
-    2. Clean the question text (remove question numbers like "01.1", but keep any reference like "the image below")
+    2. Clean the question text (remove question numbers like "01.1" or marks like "1 mark", but keep any reference like "the image below")
     3. For fill-in-the-blank questions, preserve all underscores that represent blanks (____)
-    4. Multiple choice options MUST NOT be included in the question text.
-    5. Do NOT include the content of tables or graphs in the question text.
+    4. The options for multiple choice questions MUST NOT be included in the question text.
+    5. Do NOT include the content of tables or graphs in the question text such as numbers or words in tables or graphs.
     6. Use HTML <br> tags for new lines — **do NOT use \\n**. Add <br> wherever a line break would improve clarity or match the source formatting.
-
+    7. ONLY for questions flagged as multiple choice when less than 4 options are available, make up the remaining options.
+    8. Only for questions flagged as multiple choice when more than 4 options are available, remove one or more wrong options to make the number of options equal to 4. Make sure you keep the correct answer.
+    9. Use HTML tags for bold and italic where appropriate.
     Now process the following text: {chunk}
 
-    Return ONLY valid JSON in this exact format:
-    {{
-        "question": "clean question text without numbers but preserving blanks (____)",
-        "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",
-        "options": ["option1", "option2", "option3"] or [],
-    }}
-    """
+Return ONLY valid JSON in this format:
+{{
+    "question": "...",
+    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",
+    "options": ["option1", "option2", "option3"] or [],
+}}
+"""
 
                 response = self.client.chat.completions.create(
-                    model="gpt-3.5-turbo",
+                    model="gpt-4o-mini",
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0,
                     max_tokens=500,
                 )
 
                 logger.debug(f"Received response from OpenAI for question {i}")
-                result = json.loads(response.choices[0].message.content)
-                logger.debug("🔍 AI FORMATTED OUTPUT:")
-                logger.debug(json.dumps(result, indent=2))
+                content = response.choices[0].message.content
+                try:
+                    result = json.loads(content)
+                except Exception as e:
+                    logger.warning(f"AI output not valid JSON for question {i}: {e}")
+                    raise
 
-                # === STRICT VALIDATION ADDED HERE ===
-                question_text = result.get("question", "").strip()
+                question_text = self._postprocess_question_text(result.get("question", "").strip())
                 question_type = result.get("type", "").strip()
-                
-                # Override AI if it incorrectly labeled as fill-in-the-blank
-                if question_type == "Fill in the Blank" and not self.is_fill_the_gap_question(question_text):
+
+                # Use the original merged chunk text for fill-the-gap detection
+                if question_type == "Fill in the Blank" and not self.is_fill_the_gap_question(chunk['text']):
                     question_type = "Short Answer"
                     logger.debug(f"Overriding AI classification for question {i} - not a true fill-in-the-blank")
 
@@ -311,13 +325,23 @@ class PDFProcessor:
                 if question_type != "Fill in the Blank":
                     question_text = re.sub(r"_+", "", question_text)
 
+                # Validate options
+                options = result.get("options", [])
+                if not isinstance(options, list):
+                    options = []
+
                 question_data = {
                     "question": question_text,
-                    "options": result.get("options", []),
+                    "options": options,
                     "correct_answer": "",
                     "marks": result.get("marks", ""),
                     "type": question_type,
                 }
+
+                # Final check: question text must not be empty or just numbers
+                if not question_text or re.match(r"^\s*\d+\s*$", question_text):
+                    logger.warning(f"AI output for question {i} is empty or invalid, using fallback.")
+                    raise ValueError("Empty or invalid question text")
 
                 questions.append(question_data)
                 ai_success_count += 1
@@ -330,7 +354,7 @@ class PDFProcessor:
                 logger.warning(f"⚠️ AI parsing failed for question {i}: {e}")
                 logger.info(f"Using fallback parsing for question {i}...")
 
-                fallback_result = self._fallback_parsing(chunk)
+                fallback_result = self._fallback_parsing(chunk['text'])
                 questions.append(fallback_result)
                 fallback_count += 1
 

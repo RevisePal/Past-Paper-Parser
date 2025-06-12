@@ -1,11 +1,25 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./ResultsDisplay.css";
 
 const ResultsDisplay = ({ results, onReset }) => {
   const [editingIndex, setEditingIndex] = useState(null);
   const [editedText, setEditedText] = useState("");
+  const [questions, setQuestions] = useState([]);
+
+  useEffect(() => {
+    if (results && results.questions) {
+      setQuestions(results.questions);
+    }
+  }, [results]);
+
+  const handleRemoveQuestion = (removeIndex) => {
+    setQuestions((prevQuestions) =>
+      prevQuestions.filter((_, idx) => idx !== removeIndex)
+    );
+  };
+
   const downloadJSON = () => {
-    const dataStr = JSON.stringify(results, null, 2);
+    const dataStr = JSON.stringify({ ...results, questions }, null, 2);
     const dataUri =
       "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
 
@@ -31,7 +45,7 @@ const ResultsDisplay = ({ results, onReset }) => {
   return (
     <div className="results-container">
       <div className="results-header">
-        <h2>Extracted Questions ({results.questions.length})</h2>
+        <h2>Extracted Questions ({questions.length})</h2>
         <div className="header-actions">
           <button onClick={downloadJSON} className="download-button">
             Download JSON
@@ -43,13 +57,22 @@ const ResultsDisplay = ({ results, onReset }) => {
       </div>
 
       <div className="questions-list">
-        {results.questions.map((question, index) => (
+        {questions.map((question, index) => (
           <div key={index} className="question-card">
             <div className="question-header">
               <h3>Question {question.question_number || index + 1}</h3>
-              <span className="question-type">
-                {question.type || "Multiple Choice"}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span className="question-type">
+                  {question.type || "Multiple Choice"}
+                </span>
+                <button
+                  onClick={() => handleRemoveQuestion(index)}
+                  className="remove-button"
+                  aria-label="Remove question"
+                >
+                  X
+                </button>
+              </div>
             </div>
 
             <div className="question-text">
@@ -63,8 +86,11 @@ const ResultsDisplay = ({ results, onReset }) => {
     />
     <button
       onClick={() => {
-        // Update the question locally (not persisted beyond state)
-        results.questions[index].question = editedText;
+        setQuestions(prevQuestions =>
+          prevQuestions.map((q, i) =>
+            i === index ? { ...q, question: editedText } : q
+          )
+        );
         setEditingIndex(null);
       }}
       className="save-button"
@@ -89,11 +115,7 @@ const ResultsDisplay = ({ results, onReset }) => {
     <button
       onClick={() => {
         setEditingIndex(index);
-        setEditedText(
-          question.question
-            .replace(/<[^>]+>/g, "") // Remove HTML tags for plain editing
-            .trim()
-        );
+        setEditedText((question.question || "").trim());
       }}
       className="edit-button"
     >
