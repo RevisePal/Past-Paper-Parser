@@ -100,12 +100,24 @@ class PDFProcessor:
         original_length = len(text)
 
         text = text.replace("\u00a0", " ")
-        text = re.sub(r'[✓]|\(\)', '', text)
+        text = re.sub(r'[✓]|\(\)', '', text)
         text = re.sub(r"Figure\s*\d+", "The diagram below", text, flags=re.IGNORECASE)
         text = re.sub(r"\bTable\s*\d+", "The table below", text, flags=re.IGNORECASE)
         logger.debug("Replaced non-breaking spaces")
+
+        # First check if this is a fill-in-the-blank question
+        is_fill_blank = self.is_fill_the_gap_question(text)
+        
+        if not is_fill_blank:
+            # Only remove answer placeholders if it's not a fill-in-the-blank question
+            text = re.sub(r'\s*[A-Za-z\s]+=\s*[\s_]+\s*[A-Za-z]+(?:\s*$|\s*\n)', '', text)  # Matches "Energy = _____ J" or similar
+            text = re.sub(r'\s*[A-Za-z\s]+=\s*[\s_]+\s*(?:\s*$|\s*\n)', '', text)  # Matches "Energy = _____" or similar
+            text = re.sub(r'\s*[A-Za-z\s]+:\s*[\s_]+\s*[A-Za-z]+(?:\s*$|\s*\n)', '', text)  # Matches "Energy: _____ J" or similar
+            text = re.sub(r'\s*[A-Za-z\s]+:\s*[\s_]+\s*(?:\s*$|\s*\n)', '', text)  # Matches "Energy: _____" or similar
+        
         text = self._preserve_fill_in_blanks(text)
 
+        # Define patterns to remove that are NOT used for fill-in-the-blank detection
         patterns_to_remove = [
             r"do\s*not\s*write\s*out\s*side\s*the\s*box",
             r"text\s*continues\s*on\s*the\s*next\s*page",
@@ -119,14 +131,49 @@ class PDFProcessor:
             r"►\s*/\w+",
             r"►\s*/\w+/\w+",
             r"►\s*/\w+/\w+/\w+",
+            r"Tick\s*\(?✓?\)?\s*one\s*box\.?",
+            r"Choose\s*one\s*option\.?",
+            r"Select\s*one\s*answer\.?",
+            r"Mark\s*one\s*answer\.?",
+            r"Each\s*answer\s*may\s*be\s*used\s*once,\s*more\s*than\s*once\s*or\s*not\s*at\s*all\.?",
+            r"Select\s*the\s*correct\s*option\.?",
+            r"Choose\s*the\s*best\s*answer\.?",
+            r"Identify\s*the\s*correct\s*statement\.?",
+            r"Write\s*the\s*letter\s*in\s*the\s*box\.?",
+            r"Choose\s*from\s*the\s*options\s*below\.?",
+            r"Select\s*one\s*from\s*the\s*following\.?",
         ]
 
-        for i, pattern in enumerate(patterns_to_remove, 1):
-            before_length = len(text)
-            text = re.sub(pattern, "", text, flags=re.IGNORECASE)
-            removed = before_length - len(text)
-            if removed > 0:
-                logger.debug(f"Pattern {i}: Removed {removed} characters")
+        # Only remove these patterns if it's NOT a fill-in-the-blank question
+        if not is_fill_blank:
+            for i, pattern in enumerate(patterns_to_remove, 1):
+                before_length = len(text)
+                text = re.sub(pattern, "", text, flags=re.IGNORECASE)
+                removed = before_length - len(text)
+                if removed > 0:
+                    logger.debug(f"Pattern {i}: Removed {removed} characters")
+        else:
+            # If it IS a fill-in-the-blank, only remove non-conflicting general patterns
+            non_conflicting_patterns = [
+                r"do\s*not\s*write\s*out\s*side\s*the\s*box",
+                r"text\s*continues\s*on\s*the\s*next\s*page",
+                r"Turn over",
+                r"IB/M/\d+/\w+",
+                r"IB/M/\w+",
+                r"Copyright .*?\n?",
+                r"\*\d+\*",
+                r"►\s*/\d+/\w+/\w+",
+                r"►\s*/\d+/\w+",
+                r"►\s*/\w+",
+                r"►\s*/\w+/\w+",
+                r"►\s*/\w+/\w+/\w+",
+            ]
+            for i, pattern in enumerate(non_conflicting_patterns, 1):
+                before_length = len(text)
+                text = re.sub(pattern, "", text, flags=re.IGNORECASE)
+                removed = before_length - len(text)
+                if removed > 0:
+                    logger.debug(f"Pattern {i}: Removed {removed} characters")
 
         text = re.sub(r"\n\s*\d+\s*\n", "\n", text)
         text = re.sub(r"\n{2,}", "\n", text)
@@ -280,14 +327,16 @@ You are a formatter for exam questions.
 
     Analyse this exam question text and extract the information. Be very careful to:
     1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question
-    2. Clean the question text (remove question numbers like "01.1" or marks like "1 mark", but keep any reference like "the image below")
-    3. For fill-in-the-blank questions, preserve all underscores that represent blanks (____)
-    4. The options for multiple choice questions MUST NOT be included in the question text.
-    5. Do NOT include the content of tables or graphs in the question text such as numbers or words in tables or graphs.
-    6. Use HTML <br> tags for new lines — **do NOT use \\n**. Add <br> wherever a line break would improve clarity or match the source formatting.
-    7. ONLY for questions flagged as multiple choice when less than 4 options are available, make up the remaining options.
-    8. Only for questions flagged as multiple choice when more than 4 options are available, remove one or more wrong options to make the number of options equal to 4. Make sure you keep the correct answer.
-    9. Use HTML tags for bold and italic where appropriate.
+    2. Clean the question text (remove question numbers like "01.1" or marks like "1 mark" or , but keep any reference like "the image below")
+    3. Remove any introductory or instructional phrases, such as "Tick one box", "Complete the sentence", "Choose answers from the box", and similar wording.
+    4. For fill-in-the-blank questions, preserve all underscores that represent blanks (____)
+    5. For calculation questions, remove any answer placeholders like "Answer = ______ J" or "Value: ______", including long blank lines meant for answers.
+    6. The options for multiple choice questions MUST NOT be included in the question text.
+    7. Do NOT include the content of tables or graphs in the question text such as numbers or words in tables or graphs.
+    8. Use HTML <br> tags for new lines — **do NOT use \n**. Add <br> wherever a line break would improve clarity or match the source formatting.
+    9. ONLY for questions flagged as multiple choice when less than 4 options are available, make up the remaining options. These options MUST be plausible and related to the question's content.
+    10. ONLY for questions flagged as multiple choice when more than 4 options are available, remove one or more wrong options to make the number of options equal to 4. Make sure you keep the correct answer.
+    11. Use HTML tags for bold and italic where appropriate.
     Now process the following text: {chunk}
 
 Return ONLY valid JSON in this format:
@@ -302,7 +351,7 @@ Return ONLY valid JSON in this format:
                     model="gpt-4o-mini",
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0,
-                    max_tokens=500,
+                    max_tokens=1000,
                 )
 
                 logger.debug(f"Received response from OpenAI for question {i}")
