@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { useRef } from "react";
 import "./ResultsDisplay.css";
 
 const ResultsDisplay = ({ results, onReset }) => {
   const [editingIndex, setEditingIndex] = useState(null);
   const [editedText, setEditedText] = useState("");
   const [questions, setQuestions] = useState([]);
+  const textareaRef = useRef(null);
 
   useEffect(() => {
     if (results && results.questions) {
@@ -29,6 +31,49 @@ const ResultsDisplay = ({ results, onReset }) => {
     linkElement.setAttribute("href", dataUri);
     linkElement.setAttribute("download", exportFileDefaultName);
     linkElement.click();
+  };
+
+  const handleInsertHtmlTag = (tag, closeTag) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentText = editedText;
+
+    let newText;
+    let newCursorPosition;
+
+    if (tag === "<br>") {
+      // For <br>, just insert at cursor position
+      newText = currentText.substring(0, start) + tag + currentText.substring(end);
+      newCursorPosition = start + tag.length;
+    } else if (start !== end) {
+      // If text is selected, wrap it with tags
+      newText = currentText.substring(0, start) +
+                tag +
+                currentText.substring(start, end) +
+                closeTag +
+                currentText.substring(end);
+      newCursorPosition = end + tag.length + closeTag.length;
+    } else {
+      // If no text is selected, insert tags and place cursor in between
+      newText = currentText.substring(0, start) +
+                tag +
+                closeTag +
+                currentText.substring(end);
+      newCursorPosition = start + tag.length;
+    }
+
+    setEditedText(newText);
+
+    // Restore cursor position after state update
+    // This needs to be done after the component re-renders
+    setTimeout(() => {
+      textarea.selectionStart = newCursorPosition;
+      textarea.selectionEnd = newCursorPosition;
+      textarea.focus();
+    }, 0);
   };
 
   if (!results || !results.questions) {
@@ -78,7 +123,13 @@ const ResultsDisplay = ({ results, onReset }) => {
             <div className="question-text">
             {editingIndex === index ? (
   <div className="edit-question-block">
+    <div className="html-toolbar">
+      <button onClick={() => handleInsertHtmlTag('<b>', '</b>')} title="Bold"><b>B</b></button>
+      <button onClick={() => handleInsertHtmlTag('<i>', '</i>')} title="Italic">I</button>
+      <button onClick={() => handleInsertHtmlTag('<br>', '')} title="Line Break">&lt;br&gt;</button>
+    </div>
     <textarea
+      ref={textareaRef}
       value={editedText}
       onChange={(e) => setEditedText(e.target.value)}
       rows={5}
