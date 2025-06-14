@@ -1,12 +1,13 @@
 import re
 import fitz  # PyMuPDF for better PDF text extraction
 from typing import List, Dict
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, Field
 import json
 import openai
 import os
 import logging
 from openai import OpenAI
+import uuid
 
 logging.basicConfig(
     level=logging.DEBUG,  # <- this is the fix
@@ -16,10 +17,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class Question(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), alias="_id")
     question: str
     options: List[str] = []
-    correct_answer: str = ""
-    marks: str = ""
+    answer: str = ""
     type: str = "Multiple Choice"
 
 class PDFProcessor:
@@ -380,9 +381,10 @@ Return ONLY valid JSON in this format:
                     options = []
 
                 question_data = {
+                    "_id": str(uuid.uuid4()),
                     "question": question_text,
                     "options": options,
-                    "correct_answer": "",
+                    "answer": "",
                     "marks": result.get("marks", ""),
                     "type": question_type,
                 }
@@ -421,10 +423,10 @@ Return ONLY valid JSON in this format:
         if not lines:
             logger.debug("Empty chunk, returning default question")
             return {
+                "_id": str(uuid.uuid4()),
                 "question": "",
                 "options": [],
-                "correct_answer": "",
-                "marks": "",
+                "answer": "",
                 "type": "Short Answer",
             }
 
@@ -441,9 +443,10 @@ Return ONLY valid JSON in this format:
         logger.debug(f"Fallback result: Type={question_type}, Marks={marks}")
 
         return {
+            "_id": str(uuid.uuid4()),
             "question": question_text,
             "options": [],
-            "correct_answer": "",
+            "answer": "",
             "type": question_type,
         }
 
@@ -466,7 +469,7 @@ Return ONLY valid JSON in this format:
                         {
                             "question": q_data.get("question", ""),
                             "options": q_data.get("options", []),
-                            "correct_answer": q_data.get("correct_answer", ""),
+                            "answer": q_data.get("answer", ""),
                             "type": q_data.get("type", "Unknown"),
                         }
                     )
