@@ -146,3 +146,62 @@
   cursor: pointer;
   margin-left: 1rem;
 }
+
+.options-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.option-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.option-input {
+  flex: 1;
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.remove-option-button {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+  font-size: 1rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.add-option-button {
+  align-self: flex-start;
+  margin-top: 0.25rem;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  border: 1px dashed #999;
+  border-radius: 4px;
+  background-color: #fafafa;
+  cursor: pointer;
+}
+
+.question-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.question-image {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+  object-fit: contain;
+}

@@ -6,6 +6,8 @@ const ResultsDisplay = ({ results, onReset }) => {
   const [editingIndex, setEditingIndex] = useState(null);
   const [editedText, setEditedText] = useState("");
   const [questions, setQuestions] = useState([]);
+  const [editingOptionsIndex, setEditingOptionsIndex] = useState(null);
+  const [editedOptions, setEditedOptions] = useState([]);
   const textareaRef = useRef(null);
 
   useEffect(() => {
@@ -21,7 +23,24 @@ const ResultsDisplay = ({ results, onReset }) => {
   };
 
   const downloadJSON = () => {
-    const dataStr = JSON.stringify({ ...results, questions }, null, 2);
+    const now = new Date().toISOString();
+    const mappedQuestions = questions.map((q, index) => ({
+      isdeleted: false,
+      _id: q._id || q.id || "",
+      bubble_id: null,
+      question: q.question || "",
+      answer: q.answer || "",
+      explanation: "",
+      order: (index + 1) * 100,
+      type: q.type === "Multiple Choice" ? "1" : "2",
+      options: q.options || [],
+      image: Array.isArray(q.image) ? (q.image[0] || "") : (q.image || ""),
+      createdAt: now,
+      __v: 0,
+      calculator: null,
+      checkGTP: null,
+    }));
+    const dataStr = JSON.stringify(mappedQuestions, null, 2);
     const dataUri =
       "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
 
@@ -120,6 +139,19 @@ const ResultsDisplay = ({ results, onReset }) => {
               </div>
             </div>
 
+            {question.image && question.image.length > 0 && (
+              <div className="question-images">
+                {question.image.map((src, imgIndex) => (
+                  <img
+                    key={imgIndex}
+                    src={`http://127.0.0.1:5001${src}`}
+                    alt={`Diagram ${imgIndex + 1}`}
+                    className="question-image"
+                  />
+                ))}
+              </div>
+            )}
+
             <div className="question-text">
             {editingIndex === index ? (
   <div className="edit-question-block">
@@ -181,23 +213,77 @@ const ResultsDisplay = ({ results, onReset }) => {
             {question.options && question.options.length > 0 && (
               <div className="question-options">
                 <h4>Options:</h4>
-                <ul>
-                  {question.options.map((option, optIndex) => (
-                    <li
-                      key={optIndex}
-                      className={
-                        option === question.answer
-                          ? "correct-answer"
-                          : ""
-                      }
+                {editingOptionsIndex === index ? (
+                  <div className="options-editor">
+                    {editedOptions.map((option, optIndex) => (
+                      <div key={optIndex} className="option-edit-row">
+                        <input
+                          type="text"
+                          value={option}
+                          onChange={(e) => {
+                            const updated = [...editedOptions];
+                            updated[optIndex] = e.target.value;
+                            setEditedOptions(updated);
+                          }}
+                          className="option-input"
+                        />
+                        <button
+                          onClick={() => setEditedOptions(editedOptions.filter((_, i) => i !== optIndex))}
+                          className="remove-option-button"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => setEditedOptions([...editedOptions, ""])}
+                      className="add-option-button"
                     >
-                        <span
-    dangerouslySetInnerHTML={{ __html: option }}
-  />
-                      {option === question.answer && " ✓"}
-                    </li>
-                  ))}
-                </ul>
+                      + Add Option
+                    </button>
+                    <div>
+                      <button
+                        onClick={() => {
+                          setQuestions(prev =>
+                            prev.map((q, i) =>
+                              i === index ? { ...q, options: editedOptions.filter(o => o.trim() !== "") } : q
+                            )
+                          );
+                          setEditingOptionsIndex(null);
+                        }}
+                        className="save-button"
+                      >
+                        Save
+                      </button>
+                      <button onClick={() => setEditingOptionsIndex(null)} className="cancel-button">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <ul>
+                      {question.options.map((option, optIndex) => (
+                        <li
+                          key={optIndex}
+                          className={option === question.answer ? "correct-answer" : ""}
+                        >
+                          <span dangerouslySetInnerHTML={{ __html: option }} />
+                          {option === question.answer && " ✓"}
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      onClick={() => {
+                        setEditingOptionsIndex(index);
+                        setEditedOptions([...question.options]);
+                      }}
+                      className="edit-button"
+                    >
+                      Edit Options
+                    </button>
+                  </>
+                )}
               </div>
             )}
 

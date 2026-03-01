@@ -22,6 +22,7 @@ class Question(BaseModel):
     options: List[str] = []
     answer: str = ""
     type: str = "Multiple Choice"
+    image: List[str] = []  # List of image paths associated with the question
 
 class PDFProcessor:
     def __init__(self):
@@ -37,7 +38,7 @@ class PDFProcessor:
         logger.info(f"Starting PDF processing for: {filepath}")
         try:
             logger.info("Step 1: Extracting text from PDF...")
-            raw_text, total_pages = self._extract_text(filepath)
+            raw_text, total_pages, page_image_map = self._extract_text(filepath)
             logger.info(
                 f"✓ Text extracted successfully. Pages: {total_pages}, Characters: {len(raw_text)}"
             )
@@ -53,7 +54,7 @@ class PDFProcessor:
             logger.info(f"✓ Found {len(question_chunks)} question chunks")
 
             logger.info("Step 4: Processing questions with AI...")
-            questions = self._structure_with_ai(question_chunks)
+            questions = self._structure_with_ai(question_chunks, page_image_map)
             logger.info(f"✓ Processed {len(questions)} questions")
 
             logger.info("Step 5: Validating question data...")
@@ -82,10 +83,15 @@ class PDFProcessor:
         logger.info(f"PDF opened successfully. Total pages: {total_pages}")
 
         full_text = ""
+        page_image_map = {}
         for page_num in range(1, 10):
             page = doc[page_num]
             page_text = page.get_text()
-            full_text += page_text
+            full_text += f"\n<<<PAGE_{page_num}>>>\n" + page_text
+            images = self._extract_page_images(doc, page, page_num)
+            if images:
+                page_image_map[page_num] = images
+                logger.debug(f"Page {page_num}: extracted {len(images)} image(s)")
             logger.debug(
                 f"Extracted text from page {page_num}: {len(page_text)} characters"
             )
@@ -94,14 +100,77 @@ class PDFProcessor:
         doc.close()
         logger.debug("PDF document closed")
 
-        return full_text, total_pages
+        return full_text, total_pages, page_image_map
+
+    def _extract_page_images(self, doc, page, page_num: int) -> List[str]:
+        images_dir = os.path.join(os.path.dirname(__file__), "images")
+        os.makedirs(images_dir, exist_ok=True)
+        saved_paths = []
+
+        # Embedded raster images (photos, diagrams)
+        for img in page.get_images(full=True):
+            xref = img[0]
+            try:
+                pix = fitz.Pixmap(doc, xref)
+                if pix.width < 100 or pix.height < 100:
+                    continue
+                if pix.colorspace and pix.colorspace.n > 3:
+                    pix = fitz.Pixmap(fitz.csRGB, pix)
+                filename = f"{uuid.uuid4().hex}.png"
+                pix.save(os.path.join(images_dir, filename))
+                saved_paths.append(f"/api/images/{filename}")
+            except Exception as e:
+                logger.warning(f"Failed to extract image from page {page_num}: {e}")
+
+        # Vector-drawn boxes (word banks, data tables)
+        saved_paths.extend(self._extract_box_regions(page, page_num, images_dir))
+
+        return saved_paths
+
+    def _extract_box_regions(self, page, page_num: int, images_dir: str) -> List[str]:
+        """Capture bordered rectangular regions (word banks, tables) as PNG images."""
+        saved_paths = []
+        try:
+            page_width = page.rect.width
+            seen_rects = []
+
+            for drawing in page.get_drawings():
+                rect = drawing.get("rect")
+                if rect is None or rect.is_empty or rect.is_infinite:
+                    continue
+                w, h = rect.width, rect.height
+                # Must span >35% of page width and be tall enough to contain text
+                if w < page_width * 0.35 or h < 20:
+                    continue
+                # Deduplicate: skip if this rect overlaps >80% with one already saved
+                is_dup = False
+                for seen in seen_rects:
+                    inter = rect & seen
+                    if not inter.is_empty:
+                        inter_area = inter.width * inter.height
+                        min_area = min(w * h, seen.width * seen.height)
+                        if inter_area / min_area > 0.8:
+                            is_dup = True
+                            break
+                if is_dup:
+                    continue
+                seen_rects.append(rect)
+
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), clip=rect)
+                filename = f"{uuid.uuid4().hex}.png"
+                pix.save(os.path.join(images_dir, filename))
+                saved_paths.append(f"/api/images/{filename}")
+                logger.debug(f"Page {page_num}: box region {w:.0f}×{h:.0f}pt saved")
+        except Exception as e:
+            logger.warning(f"Failed to extract box regions from page {page_num}: {e}")
+        return saved_paths
 
     def _clean_text(self, text: str) -> str:
         logger.info("Starting text cleaning process...")
         original_length = len(text)
 
         text = text.replace("\u00a0", " ")
-        text = re.sub(r'[✓]|\(\)', '', text)
+        text = re.sub(r'[✓\uf0fc\uf0fe]|\(\)', '', text)
         text = re.sub(r"Figure\s*\d+", "The diagram below", text, flags=re.IGNORECASE)
         text = re.sub(r"\bTable\s*\d+", "The table below", text, flags=re.IGNORECASE)
         logger.debug("Replaced non-breaking spaces")
@@ -132,7 +201,7 @@ class PDFProcessor:
             r"►\s*/\w+",
             r"►\s*/\w+/\w+",
             r"►\s*/\w+/\w+/\w+",
-            r"Tick\s*\(?✓?\)?\s*one\s*box\.?",
+            r"Tick\s*(?:\([^)]*\))?\s*(?:one|two|three|four|\d+)?\s*box(?:es)?\.?",
             r"Choose\s*one\s*option\.?",
             r"Select\s*one\s*answer\.?",
             r"Mark\s*one\s*answer\.?",
@@ -143,6 +212,8 @@ class PDFProcessor:
             r"Write\s*the\s*letter\s*in\s*the\s*box\.?",
             r"Choose\s*from\s*the\s*options\s*below\.?",
             r"Select\s*one\s*from\s*the\s*following\.?",
+            r"do\s*not\s*write\s*on\s*this\s*page\.?",
+            r"answer\s*in\s*the\s*spaces?\s*provided\.?",
         ]
 
         # Only remove these patterns if it's NOT a fill-in-the-blank question
@@ -168,6 +239,8 @@ class PDFProcessor:
                 r"►\s*/\w+",
                 r"►\s*/\w+/\w+",
                 r"►\s*/\w+/\w+/\w+",
+                r"do\s*not\s*write\s*on\s*this\s*page\.?",
+                r"answer\s*in\s*the\s*spaces?\s*provided\.?",
             ]
             for i, pattern in enumerate(non_conflicting_patterns, 1):
                 before_length = len(text)
@@ -261,8 +334,24 @@ class PDFProcessor:
 
         logger.info(f"Found {len(chunks)} question chunks using regex pattern")
 
+        # Build a lookup of character positions to page numbers using markers
+        page_positions = []
+        for m in re.finditer(r"<<<PAGE_(\d+)>>>", text):
+            page_positions.append((m.start(), int(m.group(1))))
+
+        def get_page_for_pos(pos: int) -> int:
+            page = 1
+            for marker_pos, page_num in page_positions:
+                if marker_pos <= pos:
+                    page = page_num
+                else:
+                    break
+            return page
+
         merged_chunks = []
         skip_next = False
+        # Track cumulative offset to find each chunk in original text
+        search_start = 0
 
         for i in range(len(chunks)):
             if skip_next:
@@ -272,6 +361,14 @@ class PDFProcessor:
             current_chunk = chunks[i].strip()
             current_qnum_match = re.match(r"^(0\d(?:\.\d)?)", current_chunk)
             current_qnum = current_qnum_match.group(1) if current_qnum_match else None
+
+            # Find position of this chunk in the full text to determine its page
+            chunk_pos = text.find(current_chunk[:40], search_start)
+            page_num = get_page_for_pos(chunk_pos) if chunk_pos != -1 else 1
+            search_start = chunk_pos + 1 if chunk_pos != -1 else search_start
+
+            # Strip page markers from chunk text
+            clean_text = re.sub(r"<<<PAGE_\d+>>>", "", current_chunk).strip()
 
             if i + 1 < len(chunks):
                 next_chunk = chunks[i + 1].strip()
@@ -283,15 +380,16 @@ class PDFProcessor:
                     base_next = next_qnum.split(".")[0]
 
                     if (base_current == base_next) and (next_qnum.endswith(".1")):
-                        merged_text = f"{current_chunk} {next_chunk}"
+                        clean_next = re.sub(r"<<<PAGE_\d+>>>", "", next_chunk).strip()
+                        merged_text = f"{clean_text} {clean_next}"
                         merged_chunks.append(
-                            {"question_number": base_current, "text": merged_text}
+                            {"question_number": base_current, "text": merged_text, "page_num": page_num}
                         )
                         skip_next = True
                         continue
 
             merged_chunks.append(
-                {"question_number": current_qnum, "text": current_chunk}
+                {"question_number": current_qnum, "text": clean_text, "page_num": page_num}
             )
 
         logger.info(f"After merging, total question chunks: {len(merged_chunks)}")
@@ -300,20 +398,22 @@ class PDFProcessor:
     def _postprocess_question_text(self, text: str) -> str:
         # Remove page numbers, headers, footers, and other known extraneous patterns
         patterns = [
-            r"Page \\d+ of \\d+",
+            r"Page \d+ of \d+",
             r"Turn over",
             r"Copyright.*",
-            r"IB/M/\\d+/\\w+",
-            r"\\*\\d+\\*",
-            r"^\\s*\\d+\\s*$",  # Standalone numbers
-            r"^\\s*\\d+\\.\\d*\\s*$",  # Standalone question numbers
+            r"IB/M/\d+/\w+",
+            r"\*\d+\*",
+            r"^\s*\d+\s*$",  # Standalone numbers
+            r"^\s*\d+\.\d*\s*$",  # Standalone question numbers
         ]
         for pattern in patterns:
             text = re.sub(pattern, "", text, flags=re.IGNORECASE | re.MULTILINE)
         return text.strip()
 
-    def _structure_with_ai(self, chunks: List[Dict]) -> List[Dict]:
+    def _structure_with_ai(self, chunks: List[Dict], page_image_map: Dict = None) -> List[Dict]:
         logger.info(f"Processing {len(chunks)} chunks with AI...")
+        if page_image_map is None:
+            page_image_map = {}
         questions = []
         ai_success_count = 0
         fallback_count = 0
@@ -323,40 +423,61 @@ class PDFProcessor:
             try:
                 logger.debug(f"Sending chunk {i} to OpenAI API...")
 
-                prompt = f"""
-You are a formatter for exam questions.
+                system_message = (
+                    "You are an exam question formatter. "
+                    "You always respond with valid JSON only, no markdown, no explanation."
+                )
 
-    Analyse this exam question text and extract the information. Be very careful to:
-    1. Always add the text extracted from an integer number e.g 01 with the text of the question after it e.g 01.1 to make one single question
-    2. Clean the question text (remove question numbers like "01.1" or marks like "1 mark" or , but keep any reference like "the image below")
-    3. Remove any introductory or instructional phrases, such as "Tick one box", "Complete the sentence", "Choose answers from the box", and similar wording.
-    4. For fill-in-the-blank questions, preserve all underscores that represent blanks (____)
-    5. For calculation questions, remove any answer placeholders like "Answer = ______ J" or "Value: ______", including long blank lines meant for answers.
-    6. The options for multiple choice questions MUST NOT be included in the question text.
-    7. Do NOT include the content of tables or graphs in the question text such as numbers or words in tables or graphs.
-    8. Use HTML <br> tags for new lines — **do NOT use \n**. Add <br> wherever a line break would improve clarity or match the source formatting.
-    9. ONLY for questions flagged as multiple choice when less than 4 options are available, make up the remaining options. These options MUST be plausible and related to the question's content.
-    10. ONLY for questions flagged as multiple choice when more than 4 options are available, remove one or more wrong options to make the number of options equal to 4. Make sure you keep the correct answer.
-    11. Use HTML tags for bold and italic where appropriate.
-    Now process the following text: {chunk}
+                user_message = f"""Extract and format the following exam question text.
 
-Return ONLY valid JSON in this format:
+QUESTION TEXT:
+{chunk['text']}
+
+INSTRUCTIONS:
+1. Combine any introductory stem (e.g. from question 01) with sub-question text (e.g. 01.1) into a single question.
+2. Remove question numbers (e.g. "01.1"), mark allocations (e.g. "[2 marks]"), and instructional phrases (e.g. "Tick one box", "Choose answers from the box", "Complete the sentence").
+3. Remove answer placeholders for calculation questions (e.g. "Answer = ______ J", "Value: ______").
+4. Do NOT include the text content of tables or graphs in the question.
+5. Use HTML <br> tags for line breaks. Do NOT use \\n.
+6. Use <b> and <i> tags where appropriate.
+
+QUESTION TYPE — choose exactly one:
+- "Multiple Choice": question has a fixed set of selectable options (labelled A/B/C/D or listed items to choose from). Extract exactly 4 options; if there are more than 4, drop the least relevant wrong ones; if there are fewer than 4, use only those available.
+- "Fill in the Blank": the question sentence itself contains blanks (____) for the student to complete.
+- "Short Answer": everything else, including calculations, describe/explain questions, and extended writing.
+
+CRITICAL — for "Multiple Choice" questions:
+- The "question" field must contain ONLY the question stem — never include any of the answer options in the question text.
+- All selectable options go ONLY in the "options" array.
+
+IMPORTANT — for "Fill in the Blank" questions:
+- Preserve all ____ blanks in the question text.
+- The "options" field must always be [] — word bank items are captured separately as images.
+
+Return ONLY this JSON:
 {{
     "question": "...",
-    "type": "Fill in the Blank" or "Multiple Choice" or "Short Answer",
-    "options": ["option1", "option2", "option3"] or [],
-}}
-"""
+    "type": "Multiple Choice" | "Fill in the Blank" | "Short Answer",
+    "options": ["option1", "option2", "option3", "option4"] | []
+}}"""
 
                 response = self.client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "user", "content": prompt}],
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": user_message},
+                    ],
+                    response_format={"type": "json_object"},
                     temperature=0,
                     max_tokens=1000,
                 )
 
                 logger.debug(f"Received response from OpenAI for question {i}")
-                content = response.choices[0].message.content
+                content = response.choices[0].message.content or ""
+                content = content.strip()
+                if content.startswith("```"):
+                    content = re.sub(r"^```(?:json)?\s*", "", content)
+                    content = re.sub(r"\s*```$", "", content)
                 try:
                     result = json.loads(content)
                 except Exception as e:
@@ -375,11 +496,12 @@ Return ONLY valid JSON in this format:
                 if question_type != "Fill in the Blank":
                     question_text = re.sub(r"_+", "", question_text)
 
-                # Validate options
+                # Validate options — Fill in the Blank never has options
                 options = result.get("options", [])
-                if not isinstance(options, list):
+                if not isinstance(options, list) or question_type == "Fill in the Blank":
                     options = []
 
+                page_images = page_image_map.get(chunk.get("page_num"), [])
                 question_data = {
                     "_id": str(uuid.uuid4()),
                     "question": question_text,
@@ -387,6 +509,7 @@ Return ONLY valid JSON in this format:
                     "answer": "",
                     "marks": result.get("marks", ""),
                     "type": question_type,
+                    "image": page_images,
                 }
 
                 # Final check: question text must not be empty or just numbers
@@ -440,7 +563,7 @@ Return ONLY valid JSON in this format:
 
         question_type = self._detect_question_type(question_text)
 
-        logger.debug(f"Fallback result: Type={question_type}, Marks={marks}")
+        logger.debug(f"Fallback result: Type={question_type}")
 
         return {
             "_id": str(uuid.uuid4()),
@@ -458,7 +581,7 @@ Return ONLY valid JSON in this format:
         for i, q_data in enumerate(questions, 1):
             try:
                 question = Question(**q_data)
-                validated.append(question.dict())
+                validated.append(question.model_dump())
                 logger.debug(f"Question {i} validation: ✓")
             except ValidationError as e:
                 validation_errors += 1

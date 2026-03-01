@@ -1,6 +1,6 @@
 import os
 import time
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
@@ -15,6 +15,7 @@ app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 app.config["UPLOAD_FOLDER"] = "uploads"
 
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+os.makedirs("images", exist_ok=True)
 
 pdf_processor = PDFProcessor()
 
@@ -58,10 +59,15 @@ def process_pdf():
         return jsonify({"error": f"Processing failed: {str(e)}"}), 500
 
 
+@app.route("/api/images/<filename>")
+def serve_image(filename):
+    return send_from_directory("images", filename)
+
+
 @app.route("/api/health", methods=["GET"])
 def health_check():
     return jsonify({"status": "healthy"})
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5001)
