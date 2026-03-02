@@ -8,17 +8,58 @@ const ResultsDisplay = ({ results, onReset }) => {
   const [questions, setQuestions] = useState([]);
   const [editingOptionsIndex, setEditingOptionsIndex] = useState(null);
   const [editedOptions, setEditedOptions] = useState([]);
+  const [editingAnswerIndex, setEditingAnswerIndex] = useState(null);
+  const [editedAnswer, setEditedAnswer] = useState("");
+  const [copiedImage, setCopiedImage] = useState(null);
   const textareaRef = useRef(null);
+  const answerTextareaRef = useRef(null);
 
   useEffect(() => {
     if (results && results.questions) {
-      setQuestions(results.questions);
+      try {
+        const saved = localStorage.getItem("ppp_questions");
+        setQuestions(saved ? JSON.parse(saved) : results.questions);
+      } catch {
+        setQuestions(results.questions);
+      }
     }
   }, [results]);
+
+  useEffect(() => {
+    if (questions.length > 0) {
+      localStorage.setItem("ppp_questions", JSON.stringify(questions));
+    }
+  }, [questions]);
 
   const handleRemoveQuestion = (removeIndex) => {
     setQuestions((prevQuestions) =>
       prevQuestions.filter((_, idx) => idx !== removeIndex)
+    );
+  };
+
+  const handleRemoveImage = (questionIndex, imgIndex) => {
+    setQuestions((prev) =>
+      prev.map((q, i) =>
+        i === questionIndex
+          ? { ...q, image: q.image.filter((_, ii) => ii !== imgIndex) }
+          : q
+      )
+    );
+  };
+
+  const handleCopyImage = (src) => {
+    setCopiedImage(src);
+  };
+
+  const handlePasteImage = (questionIndex) => {
+    if (!copiedImage) return;
+    setQuestions((prev) =>
+      prev.map((q, i) => {
+        if (i !== questionIndex) return q;
+        const imgs = Array.isArray(q.image) ? q.image : (q.image ? [q.image] : []);
+        if (imgs.includes(copiedImage)) return q;
+        return { ...q, image: [...imgs, copiedImage] };
+      })
     );
   };
 
@@ -52,13 +93,13 @@ const ResultsDisplay = ({ results, onReset }) => {
     linkElement.click();
   };
 
-  const handleInsertHtmlTag = (tag, closeTag) => {
-    const textarea = textareaRef.current;
+  const handleInsertHtmlTag = (tag, closeTag, ref = textareaRef, getText = () => editedText, setText = setEditedText) => {
+    const textarea = ref.current;
     if (!textarea) return;
 
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const currentText = editedText;
+    const currentText = getText();
 
     let newText;
     let newCursorPosition;
@@ -84,10 +125,8 @@ const ResultsDisplay = ({ results, onReset }) => {
       newCursorPosition = start + tag.length;
     }
 
-    setEditedText(newText);
+    setText(newText);
 
-    // Restore cursor position after state update
-    // This needs to be done after the component re-renders
     setTimeout(() => {
       textarea.selectionStart = newCursorPosition;
       textarea.selectionEnd = newCursorPosition;
@@ -139,16 +178,41 @@ const ResultsDisplay = ({ results, onReset }) => {
               </div>
             </div>
 
-            {question.image && question.image.length > 0 && (
+            {((question.image && question.image.length > 0) || copiedImage) && (
               <div className="question-images">
-                {question.image.map((src, imgIndex) => (
-                  <img
-                    key={imgIndex}
-                    src={`http://127.0.0.1:5001${src}`}
-                    alt={`Diagram ${imgIndex + 1}`}
-                    className="question-image"
-                  />
+                {question.image && question.image.map((src, imgIndex) => (
+                  <div key={imgIndex} className="question-image-wrapper">
+                    <img
+                      src={`http://127.0.0.1:5001${src}`}
+                      alt={`Diagram ${imgIndex + 1}`}
+                      className="question-image"
+                    />
+                    <button
+                      className="copy-image-button"
+                      onClick={() => handleCopyImage(src)}
+                      aria-label="Copy image"
+                      title="Copy image to clipboard"
+                    >
+                      {copiedImage === src ? "Copied" : "Copy"}
+                    </button>
+                    <button
+                      className="remove-image-button"
+                      onClick={() => handleRemoveImage(index, imgIndex)}
+                      aria-label="Remove image"
+                    >
+                      ×
+                    </button>
+                  </div>
                 ))}
+                {copiedImage && (
+                  <button
+                    className="paste-image-button"
+                    onClick={() => handlePasteImage(index)}
+                    title="Paste copied image into this question"
+                  >
+                    + Paste Image
+                  </button>
+                )}
               </div>
             )}
 
@@ -287,12 +351,56 @@ const ResultsDisplay = ({ results, onReset }) => {
               </div>
             )}
 
-            {question.answer && (
-              <div className="correct-answer-section">
-                <h4>Correct Answer:</h4>
-                <p className="answer">{question.answer}</p>
-              </div>
-            )}
+            <div className="correct-answer-section">
+              <h4>Correct Answer:</h4>
+              {editingAnswerIndex === index ? (
+                <div className="edit-question-block">
+                  <div className="html-toolbar">
+                    <button onClick={() => handleInsertHtmlTag('<b>', '</b>', answerTextareaRef, () => editedAnswer, setEditedAnswer)} title="Bold"><b>B</b></button>
+                    <button onClick={() => handleInsertHtmlTag('<i>', '</i>', answerTextareaRef, () => editedAnswer, setEditedAnswer)} title="Italic">I</button>
+                    <button onClick={() => handleInsertHtmlTag('<sub>', '</sub>', answerTextareaRef, () => editedAnswer, setEditedAnswer)} title="Subscript">X₂</button>
+                    <button onClick={() => handleInsertHtmlTag('<sup>', '</sup>', answerTextareaRef, () => editedAnswer, setEditedAnswer)} title="Superscript">X²</button>
+                    <button onClick={() => handleInsertHtmlTag('<br>', '', answerTextareaRef, () => editedAnswer, setEditedAnswer)} title="Line Break">&lt;br&gt;</button>
+                  </div>
+                  <textarea
+                    ref={answerTextareaRef}
+                    value={editedAnswer}
+                    onChange={(e) => setEditedAnswer(e.target.value)}
+                    rows={3}
+                    className="question-editor"
+                  />
+                  <button
+                    onClick={() => {
+                      setQuestions(prev =>
+                        prev.map((q, i) =>
+                          i === index ? { ...q, answer: editedAnswer } : q
+                        )
+                      );
+                      setEditingAnswerIndex(null);
+                    }}
+                    className="save-button"
+                  >
+                    Save
+                  </button>
+                  <button onClick={() => setEditingAnswerIndex(null)} className="cancel-button">
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="answer">{question.answer || "Not set"}</p>
+                  <button
+                    onClick={() => {
+                      setEditingAnswerIndex(index);
+                      setEditedAnswer((question.answer || "").trim());
+                    }}
+                    className="edit-button"
+                  >
+                    Edit Answer
+                  </button>
+                </>
+              )}
+            </div>
 
             {question.marks && (
               <div className="marks-section">

@@ -3,7 +3,6 @@ import fitz  # PyMuPDF for better PDF text extraction
 from typing import List, Dict
 from pydantic import BaseModel, ValidationError, Field
 import json
-import openai
 import os
 import logging
 from openai import OpenAI
@@ -38,7 +37,7 @@ class PDFProcessor:
         logger.info(f"Starting PDF processing for: {filepath}")
         try:
             logger.info("Step 1: Extracting text from PDF...")
-            raw_text, total_pages, page_image_map = self._extract_text(filepath)
+            raw_text, total_pages, page_image_map, page_question_y = self._extract_text(filepath)
             logger.info(
                 f"✓ Text extracted successfully. Pages: {total_pages}, Characters: {len(raw_text)}"
             )
@@ -54,7 +53,7 @@ class PDFProcessor:
             logger.info(f"✓ Found {len(question_chunks)} question chunks")
 
             logger.info("Step 4: Processing questions with AI...")
-            questions = self._structure_with_ai(question_chunks, page_image_map)
+            questions = self._structure_with_ai(question_chunks, page_image_map, page_question_y)
             logger.info(f"✓ Processed {len(questions)} questions")
 
             logger.info("Step 5: Validating question data...")
@@ -83,31 +82,56 @@ class PDFProcessor:
         logger.info(f"PDF opened successfully. Total pages: {total_pages}")
 
         full_text = ""
-        page_image_map = {}
-        for page_num in range(1, 10):
+        page_image_map = {}   # {page_num: [(fitz.Rect, path), ...]}
+        page_question_y = {}  # {page_num: {qnum_str: y0}}
+
+        for page_num in range(0, min(total_pages, 9)):
             page = doc[page_num]
             page_text = page.get_text()
             full_text += f"\n<<<PAGE_{page_num}>>>\n" + page_text
+
             images = self._extract_page_images(doc, page, page_num)
             if images:
                 page_image_map[page_num] = images
                 logger.debug(f"Page {page_num}: extracted {len(images)} image(s)")
-            logger.debug(
-                f"Extracted text from page {page_num}: {len(page_text)} characters"
-            )
+
+            # Record the y-position of each question number found on this page
+            q_y = {}
+            for block in page.get_text("blocks"):
+                block_text = block[4].strip()
+                m = re.match(r'^(0\d(?:\.\d)?)', block_text)
+                if m and m.group(1) not in q_y:
+                    q_y[m.group(1)] = block[1]  # y0 of the block
+            if q_y:
+                page_question_y[page_num] = q_y
+
+            logger.debug(f"Extracted text from page {page_num}: {len(page_text)} characters")
 
         logger.info(f"Text extraction complete. Total characters: {len(full_text)}")
         doc.close()
         logger.debug("PDF document closed")
 
-        return full_text, total_pages, page_image_map
+        return full_text, total_pages, page_image_map, page_question_y
 
-    def _extract_page_images(self, doc, page, page_num: int) -> List[str]:
+    def _extract_page_images(self, doc, page, page_num: int) -> List[tuple]:
+        """Return (fitz.Rect, path) pairs for all images, tables, and boxes on the page."""
         images_dir = os.path.join(os.path.dirname(__file__), "images")
         os.makedirs(images_dir, exist_ok=True)
-        saved_paths = []
+        saved = []
+        seen_rects = []
 
-        # Embedded raster images (photos, diagrams)
+        # Build xref -> on-page bounding rect from image placement info
+        xref_to_rect = {}
+        try:
+            for info in page.get_image_info(xrefs=True):
+                xref = info.get("xref", 0)
+                bbox = info.get("bbox")
+                if xref and bbox:
+                    xref_to_rect[xref] = fitz.Rect(bbox)
+        except Exception:
+            pass
+
+        # Embedded raster images (photos, diagrams, graphs)
         for img in page.get_images(full=True):
             xref = img[0]
             try:
@@ -118,52 +142,86 @@ class PDFProcessor:
                     pix = fitz.Pixmap(fitz.csRGB, pix)
                 filename = f"{uuid.uuid4().hex}.png"
                 pix.save(os.path.join(images_dir, filename))
-                saved_paths.append(f"/api/images/{filename}")
+                rect = xref_to_rect.get(xref, fitz.Rect(0, 0, page.rect.width, page.rect.height))
+                seen_rects.append(rect)
+                saved.append((rect, f"/api/images/{filename}"))
             except Exception as e:
                 logger.warning(f"Failed to extract image from page {page_num}: {e}")
 
-        # Vector-drawn boxes (word banks, data tables)
-        saved_paths.extend(self._extract_box_regions(page, page_num, images_dir))
+        # Vector regions: word banks, tables, bordered diagrams
+        for rect in self._collect_region_rects(page, page_num):
+            # Deduplicate against raster images and previously saved vector regions
+            is_dup = False
+            for seen in seen_rects:
+                inter = rect & seen
+                if not inter.is_empty:
+                    inter_area = inter.width * inter.height
+                    min_area = min(rect.width * rect.height, seen.width * seen.height)
+                    if min_area > 0 and inter_area / min_area > 0.8:
+                        is_dup = True
+                        break
+            if is_dup:
+                continue
+            seen_rects.append(rect)
+            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), clip=rect)
+            filename = f"{uuid.uuid4().hex}.png"
+            pix.save(os.path.join(images_dir, filename))
+            saved.append((rect, f"/api/images/{filename}"))
+            logger.debug(f"Page {page_num}: vector region {rect.width:.0f}×{rect.height:.0f}pt saved")
 
-        return saved_paths
+        return saved
 
-    def _extract_box_regions(self, page, page_num: int, images_dir: str) -> List[str]:
-        """Capture bordered rectangular regions (word banks, tables) as PNG images."""
-        saved_paths = []
+    def _collect_region_rects(self, page, page_num: int) -> List[fitz.Rect]:
+        """Collect unique candidate rects for word banks, tables, and bordered diagrams."""
+        page_width = page.rect.width
+        candidates = []
+
+        # Drawing paths — sort largest area first so outer borders take priority over inner cells
+        drawings = sorted(
+            page.get_drawings(),
+            key=lambda d: (d["rect"].width * d["rect"].height) if d.get("rect") else 0,
+            reverse=True,
+        )
+        for drawing in drawings:
+            if drawing.get("color") is None:  # no visible stroke
+                continue
+            rect = drawing.get("rect")
+            if rect is None or rect.is_empty or rect.is_infinite:
+                continue
+            if rect.width < page_width * 0.2 or rect.height < 20:
+                continue
+            if not page.get_textbox(rect).strip():  # no text inside
+                continue
+            candidates.append(rect)
+
+        # PyMuPDF table finder — catches tables whose borders are line segments, not rect paths
         try:
-            page_width = page.rect.width
-            seen_rects = []
-
-            for drawing in page.get_drawings():
-                rect = drawing.get("rect")
-                if rect is None or rect.is_empty or rect.is_infinite:
-                    continue
-                w, h = rect.width, rect.height
-                # Must span >35% of page width and be tall enough to contain text
-                if w < page_width * 0.35 or h < 20:
-                    continue
-                # Deduplicate: skip if this rect overlaps >80% with one already saved
-                is_dup = False
-                for seen in seen_rects:
-                    inter = rect & seen
-                    if not inter.is_empty:
-                        inter_area = inter.width * inter.height
-                        min_area = min(w * h, seen.width * seen.height)
-                        if inter_area / min_area > 0.8:
-                            is_dup = True
-                            break
-                if is_dup:
-                    continue
-                seen_rects.append(rect)
-
-                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), clip=rect)
-                filename = f"{uuid.uuid4().hex}.png"
-                pix.save(os.path.join(images_dir, filename))
-                saved_paths.append(f"/api/images/{filename}")
-                logger.debug(f"Page {page_num}: box region {w:.0f}×{h:.0f}pt saved")
+            for table in page.find_tables():
+                rect = fitz.Rect(table.bbox)
+                if not rect.is_empty and rect.width >= page_width * 0.2 and rect.height >= 20:
+                    candidates.append(rect)
+                    logger.debug(f"Page {page_num}: table found at y={rect.y0:.0f}")
+        except AttributeError:
+            pass  # find_tables() requires PyMuPDF ≥ 1.23
         except Exception as e:
-            logger.warning(f"Failed to extract box regions from page {page_num}: {e}")
-        return saved_paths
+            logger.warning(f"Table detection failed on page {page_num}: {e}")
+
+        # Deduplicate: prefer larger rects (already sorted that way for drawings)
+        unique = []
+        for rect in candidates:
+            is_dup = False
+            for seen in unique:
+                inter = rect & seen
+                if not inter.is_empty:
+                    inter_area = inter.width * inter.height
+                    min_area = min(rect.width * rect.height, seen.width * seen.height)
+                    if min_area > 0 and inter_area / min_area > 0.8:
+                        is_dup = True
+                        break
+            if not is_dup:
+                unique.append(rect)
+
+        return unique
 
     def _clean_text(self, text: str) -> str:
         logger.info("Starting text cleaning process...")
@@ -175,16 +233,13 @@ class PDFProcessor:
         text = re.sub(r"\bTable\s*\d+", "The table below", text, flags=re.IGNORECASE)
         logger.debug("Replaced non-breaking spaces")
 
-        # First check if this is a fill-in-the-blank question
-        is_fill_blank = self.is_fill_the_gap_question(text)
-        
-        if not is_fill_blank:
-            # Only remove answer placeholders if it's not a fill-in-the-blank question
-            text = re.sub(r'\s*[A-Za-z\s]+=\s*[\s_]+\s*[A-Za-z]+(?:\s*$|\s*\n)', '', text)  # Matches "Energy = _____ J" or similar
-            text = re.sub(r'\s*[A-Za-z\s]+=\s*[\s_]+\s*(?:\s*$|\s*\n)', '', text)  # Matches "Energy = _____" or similar
-            text = re.sub(r'\s*[A-Za-z\s]+:\s*[\s_]+\s*[A-Za-z]+(?:\s*$|\s*\n)', '', text)  # Matches "Energy: _____ J" or similar
-            text = re.sub(r'\s*[A-Za-z\s]+:\s*[\s_]+\s*(?:\s*$|\s*\n)', '', text)  # Matches "Energy: _____" or similar
-        
+        # Remove calculation answer placeholders (e.g. "Energy = _____ J")
+        # These use "label = blank unit" format and won't match mid-sentence fill blanks
+        text = re.sub(r'\s*[A-Za-z\s]+=\s*[\s_]+\s*[A-Za-z]+(?:\s*$|\s*\n)', '', text)
+        text = re.sub(r'\s*[A-Za-z\s]+=\s*[\s_]+\s*(?:\s*$|\s*\n)', '', text)
+        text = re.sub(r'\s*[A-Za-z\s]+:\s*[\s_]+\s*[A-Za-z]+(?:\s*$|\s*\n)', '', text)
+        text = re.sub(r'\s*[A-Za-z\s]+:\s*[\s_]+\s*(?:\s*$|\s*\n)', '', text)
+
         text = self._preserve_fill_in_blanks(text)
 
         # Define patterns to remove that are NOT used for fill-in-the-blank detection
@@ -216,38 +271,12 @@ class PDFProcessor:
             r"answer\s*in\s*the\s*spaces?\s*provided\.?",
         ]
 
-        # Only remove these patterns if it's NOT a fill-in-the-blank question
-        if not is_fill_blank:
-            for i, pattern in enumerate(patterns_to_remove, 1):
-                before_length = len(text)
-                text = re.sub(pattern, "", text, flags=re.IGNORECASE)
-                removed = before_length - len(text)
-                if removed > 0:
-                    logger.debug(f"Pattern {i}: Removed {removed} characters")
-        else:
-            # If it IS a fill-in-the-blank, only remove non-conflicting general patterns
-            non_conflicting_patterns = [
-                r"do\s*not\s*write\s*out\s*side\s*the\s*box",
-                r"text\s*continues\s*on\s*the\s*next\s*page",
-                r"Turn over",
-                r"IB/M/\d+/\w+",
-                r"IB/M/\w+",
-                r"Copyright .*?\n?",
-                r"\*\d+\*",
-                r"►\s*/\d+/\w+/\w+",
-                r"►\s*/\d+/\w+",
-                r"►\s*/\w+",
-                r"►\s*/\w+/\w+",
-                r"►\s*/\w+/\w+/\w+",
-                r"do\s*not\s*write\s*on\s*this\s*page\.?",
-                r"answer\s*in\s*the\s*spaces?\s*provided\.?",
-            ]
-            for i, pattern in enumerate(non_conflicting_patterns, 1):
-                before_length = len(text)
-                text = re.sub(pattern, "", text, flags=re.IGNORECASE)
-                removed = before_length - len(text)
-                if removed > 0:
-                    logger.debug(f"Pattern {i}: Removed {removed} characters")
+        for i, pattern in enumerate(patterns_to_remove, 1):
+            before_length = len(text)
+            text = re.sub(pattern, "", text, flags=re.IGNORECASE)
+            removed = before_length - len(text)
+            if removed > 0:
+                logger.debug(f"Pattern {i}: Removed {removed} characters")
 
         text = re.sub(r"\n\s*\d+\s*\n", "\n", text)
         text = re.sub(r"\n{2,}", "\n", text)
@@ -261,27 +290,13 @@ class PDFProcessor:
         return text
 
     def _preserve_fill_in_blanks(self, text: str) -> str:
-        logger.debug("Preserving fill-in-the-blank patterns...")
-        
-        # First check if this is actually a fill-the-gap question
-        if not self.is_fill_the_gap_question(text):
-            # If not, clean ALL underscores (they're not blanks)
-            text = re.sub(r"_+", "", text)
-            return text
-        
-        # Only process underscores if it's a fill-the-gap question
-        # Replace sequences of underscores with consistent blanks
+        # Normalise all underscore sequences to consistent blanks.
+        # Per-question blank removal for non-fill types happens later in _structure_with_ai.
         text = re.sub(r"_{3,}", "____", text)
-        
-        # Handle spaced underscores like "_ _ _ _"
         text = re.sub(r"(?:_\s+){2,}_?", "____", text)
-        
-        # Handle single underscores in specific contexts
-        text = re.sub(r"(?<=\s)_(?=\s)", "____", text)      # Between spaces
-        text = re.sub(r"(?<=\s)_(?=[.,;:])", "____", text)  # Before punctuation
-        text = re.sub(r"(?<=[.,;:])\s*_(?=\s)", "____", text)  # After punctuation
-        
-        logger.debug("Fill-in-the-blank preservation complete")
+        text = re.sub(r"(?<=\s)_(?=\s)", "____", text)
+        text = re.sub(r"(?<=\s)_(?=[.,;:])", "____", text)
+        text = re.sub(r"(?<=[.,;:])\s*_(?=\s)", "____", text)
         return text
 
     def is_fill_the_gap_question(self, text: str) -> bool:
@@ -410,7 +425,31 @@ class PDFProcessor:
             text = re.sub(pattern, "", text, flags=re.IGNORECASE | re.MULTILINE)
         return text.strip()
 
-    def _structure_with_ai(self, chunks: List[Dict], page_image_map: Dict = None) -> List[Dict]:
+    def _get_images_for_chunk(self, chunk: Dict, page_image_map: Dict, page_question_y: Dict) -> List[str]:
+        """Return image paths whose on-page position falls within this question's vertical range."""
+        page_num = chunk.get("page_num")
+        q_num = chunk.get("question_number")
+        all_rects = page_image_map.get(page_num, [])  # [(rect, path), ...]
+        if not all_rects:
+            return []
+
+        q_positions = (page_question_y or {}).get(page_num, {})
+        if q_positions and q_num in q_positions:
+            q_y = q_positions[q_num]
+            # Find the y-start of the next question on the same page
+            next_y = float("inf")
+            for qn, qy in q_positions.items():
+                if qy > q_y:
+                    next_y = min(next_y, qy)
+            return [
+                path for rect, path in all_rects
+                if rect.y0 >= q_y - 30 and rect.y0 < next_y
+            ]
+
+        # No position info available — return all images on the page
+        return [path for _, path in all_rects]
+
+    def _structure_with_ai(self, chunks: List[Dict], page_image_map: Dict = None, page_question_y: Dict = None) -> List[Dict]:
         logger.info(f"Processing {len(chunks)} chunks with AI...")
         if page_image_map is None:
             page_image_map = {}
@@ -454,11 +493,18 @@ IMPORTANT — for "Fill in the Blank" questions:
 - Preserve all ____ blanks in the question text.
 - The "options" field must always be [] — word bank items are captured separately as images.
 
+ANSWER — provide the correct answer in the "answer" field using your own knowledge:
+- Multiple Choice: the exact text of the correct option.
+- Fill in the Blank: the correct word(s) for each blank, comma-separated if multiple blanks.
+- Short Answer: a concise model answer (1–3 sentences).
+- If genuinely uncertain, return "".
+
 Return ONLY this JSON:
 {{
     "question": "...",
     "type": "Multiple Choice" | "Fill in the Blank" | "Short Answer",
-    "options": ["option1", "option2", "option3", "option4"] | []
+    "options": ["option1", "option2", "option3", "option4"] | [],
+    "answer": "..."
 }}"""
 
                 response = self.client.chat.completions.create(
@@ -501,12 +547,12 @@ Return ONLY this JSON:
                 if not isinstance(options, list) or question_type == "Fill in the Blank":
                     options = []
 
-                page_images = page_image_map.get(chunk.get("page_num"), [])
+                page_images = self._get_images_for_chunk(chunk, page_image_map, page_question_y)
                 question_data = {
                     "_id": str(uuid.uuid4()),
                     "question": question_text,
                     "options": options,
-                    "answer": "",
+                    "answer": result.get("answer", ""),
                     "marks": result.get("marks", ""),
                     "type": question_type,
                     "image": page_images,
@@ -529,6 +575,7 @@ Return ONLY this JSON:
                 logger.info(f"Using fallback parsing for question {i}...")
 
                 fallback_result = self._fallback_parsing(chunk['text'])
+                fallback_result["image"] = self._get_images_for_chunk(chunk, page_image_map, page_question_y)
                 questions.append(fallback_result)
                 fallback_count += 1
 

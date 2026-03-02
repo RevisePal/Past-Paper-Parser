@@ -1,14 +1,28 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import FileUpload from "./components/FileUpload";
 import ResultsDisplay from "./components/ResultsDisplay";
 import "./App.css";
 
 function App() {
-  const [results, setResults] = useState(null);
+  const [results, setResults] = useState(() => {
+    try {
+      const saved = localStorage.getItem("ppp_results");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  useEffect(() => {
+    if (results) {
+      localStorage.setItem("ppp_results", JSON.stringify(results));
+    }
+  }, [results]);
+
   const handleFileProcessed = (data) => {
+    localStorage.removeItem("ppp_questions");
     setResults(data);
     setError(null);
   };
@@ -19,6 +33,8 @@ function App() {
   };
 
   const handleReset = () => {
+    localStorage.removeItem("ppp_results");
+    localStorage.removeItem("ppp_questions");
     setResults(null);
     setError(null);
     setLoading(false);
