@@ -14,12 +14,31 @@ function App() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [examboards, setExamboards] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [selectedBoard, setSelectedBoard] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState("");
 
   useEffect(() => {
     if (results) {
       localStorage.setItem("ppp_results", JSON.stringify(results));
     }
   }, [results]);
+
+  useEffect(() => {
+    fetch("http://127.0.0.1:5001/api/examboards")
+      .then((res) => res.json())
+      .then((data) => setExamboards(data.examboards || []))
+      .catch((err) => console.error("Failed to load exam boards:", err));
+    fetch("http://127.0.0.1:5001/api/subjects")
+      .then((res) => res.json())
+      .then((data) => setSubjects(data.subjects || []))
+      .catch((err) => console.error("Failed to load subjects:", err));
+  }, []);
+
+  const subjectsForBoard = subjects.filter(
+    (s) => !selectedBoard || (s.available_board_ids || []).includes(selectedBoard)
+  );
 
   const handleFileProcessed = (data) => {
     localStorage.removeItem("ppp_questions");
@@ -49,11 +68,52 @@ function App() {
 
       <main className="App-main">
         {!results && !loading && (
-          <FileUpload
-            onFileProcessed={handleFileProcessed}
-            onError={handleError}
-            onLoadingChange={setLoading}
-          />
+          <div className="upload-section">
+            <div className="taxonomy-picker">
+              <div className="taxonomy-field">
+                <label htmlFor="board-select">Exam Board:</label>
+                <select
+                  id="board-select"
+                  value={selectedBoard}
+                  onChange={(e) => {
+                    setSelectedBoard(e.target.value);
+                    setSelectedSubject("");
+                  }}
+                >
+                  <option value="">Select exam board...</option>
+                  {examboards.map((b) => (
+                    <option key={b._id} value={b._id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="taxonomy-field">
+                <label htmlFor="subject-select">Subject:</label>
+                <select
+                  id="subject-select"
+                  value={selectedSubject}
+                  onChange={(e) => setSelectedSubject(e.target.value)}
+                  disabled={!selectedBoard}
+                >
+                  <option value="">Select subject...</option>
+                  {subjectsForBoard.map((s) => (
+                    <option key={s._id} value={s._id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <FileUpload
+              onFileProcessed={handleFileProcessed}
+              onError={handleError}
+              onLoadingChange={setLoading}
+              subjectId={selectedSubject}
+              boardId={selectedBoard}
+              disabled={!selectedBoard || !selectedSubject}
+            />
+          </div>
         )}
 
         {loading && (

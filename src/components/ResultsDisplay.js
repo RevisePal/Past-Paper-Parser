@@ -2,6 +2,14 @@ import React, { useState, useEffect } from "react";
 import { useRef } from "react";
 import "./ResultsDisplay.css";
 
+const FIREBASE_IMAGE_BASE =
+  "https://firebasestorage.googleapis.com/v0/b/cloudpass-f5536.appspot.com/o/images%2F";
+
+const bubbleLabel = (b) => `${b.name} — ${b.topic_id?.name || "Unknown topic"}`;
+
+const isCalculatorEnabled = (q) => q.calculator === true;
+const isChatGptEnabled = (q) => q.checkGTP === true;
+
 const ResultsDisplay = ({ results, onReset }) => {
   const [editingIndex, setEditingIndex] = useState(null);
   const [editedText, setEditedText] = useState("");
@@ -9,10 +17,13 @@ const ResultsDisplay = ({ results, onReset }) => {
   const [editingOptionsIndex, setEditingOptionsIndex] = useState(null);
   const [editedOptions, setEditedOptions] = useState([]);
   const [editingAnswerIndex, setEditingAnswerIndex] = useState(null);
-  const [editedAnswer, setEditedAnswer] = useState("");
+  const [editedAnswers, setEditedAnswers] = useState([]);
   const [copiedImage, setCopiedImage] = useState(null);
+  const [bubbles, setBubbles] = useState([]);
+  const [expandedBubbleIndices, setExpandedBubbleIndices] = useState(new Set());
   const textareaRef = useRef(null);
-  const answerTextareaRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const uploadTargetIndex = useRef(null);
 
   useEffect(() => {
     if (results && results.questions) {
@@ -30,6 +41,39 @@ const ResultsDisplay = ({ results, onReset }) => {
       localStorage.setItem("ppp_questions", JSON.stringify(questions));
     }
   }, [questions]);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (results?.metadata?.subject_id) params.set("subject_id", results.metadata.subject_id);
+    if (results?.metadata?.board_id) params.set("board_id", results.metadata.board_id);
+    fetch(`http://127.0.0.1:5001/api/bubbles?${params}`)
+      .then((res) => res.json())
+      .then((data) => setBubbles(data.bubbles || []))
+      .catch((err) => console.error("Failed to load bubbles:", err));
+  }, [results]);
+
+  const handleBubbleSelectChange = (index, value) => {
+    const match = bubbles.find((b) => b._id === value) || null;
+    setQuestions((prev) =>
+      prev.map((q, i) => (i === index ? { ...q, bubble_id: match } : q))
+    );
+  };
+
+  const handleExpandBubbles = (index) => {
+    setExpandedBubbleIndices((prev) => new Set(prev).add(index));
+  };
+
+  const handleToggleCalculator = (index) => {
+    setQuestions((prev) =>
+      prev.map((q, i) => (i === index ? { ...q, calculator: !isCalculatorEnabled(q) } : q))
+    );
+  };
+
+  const handleToggleChatGpt = (index) => {
+    setQuestions((prev) =>
+      prev.map((q, i) => (i === index ? { ...q, checkGTP: !isChatGptEnabled(q) } : q))
+    );
+  };
 
   const handleRemoveQuestion = (removeIndex) => {
     setQuestions((prevQuestions) =>
@@ -63,24 +107,99 @@ const ResultsDisplay = ({ results, onReset }) => {
     );
   };
 
+  const handleUploadImage = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file || uploadTargetIndex.current === null) return;
+    const questionIndex = uploadTargetIndex.current;
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch("http://127.0.0.1:5001/api/upload-image", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.path) {
+        setQuestions((prev) =>
+          prev.map((q, i) => {
+            if (i !== questionIndex) return q;
+            const imgs = Array.isArray(q.image) ? q.image : (q.image ? [q.image] : []);
+            return { ...q, image: [...imgs, data.path] };
+          })
+        );
+      }
+    } catch (err) {
+      console.error("Image upload failed:", err);
+    }
+  };
+
+  const handleSave = async () => {
+    // 1. Upload local images to Firebase Storage
+    let urlMap = {};
+    try {
+      const res = await fetch("http://127.0.0.1:5001/api/save-to-firebase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questions }),
+      });
+      const data = await res.json();
+      urlMap = data.url_map || {};
+    } catch (err) {
+      console.error("Firebase upload failed:", err);
+    }
+
+    // 2. Replace local paths with Firebase URLs in questions state
+    let updatedQuestions = questions;
+    if (Object.keys(urlMap).length > 0) {
+      updatedQuestions = questions.map((q) => {
+        const imgs = Array.isArray(q.image) ? q.image : (q.image ? [q.image] : []);
+        return { ...q, image: imgs.map((src) => urlMap[src] || src) };
+      });
+      setQuestions(updatedQuestions);
+    }
+
+    // 3. Delete local images that are no longer referenced
+    const keepPaths = new Set();
+    updatedQuestions.forEach((q) => {
+      const imgs = Array.isArray(q.image) ? q.image : (q.image ? [q.image] : []);
+      imgs.forEach((p) => { if (p) keepPaths.add(p); });
+    });
+    try {
+      await fetch("http://127.0.0.1:5001/api/cleanup-images", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keep: [...keepPaths] }),
+      });
+    } catch (err) {
+      console.error("Cleanup failed:", err);
+    }
+  };
+
+  const typeCode = (t) =>
+    t === "Multiple Choice" ? "1" : t === "Fill in the Blank" ? "2" : "3";
+
   const downloadJSON = () => {
     const now = new Date().toISOString();
-    const mappedQuestions = questions.map((q, index) => ({
-      isdeleted: false,
-      _id: q._id || q.id || "",
-      bubble_id: null,
-      question: q.question || "",
-      answer: q.answer || "",
-      explanation: "",
-      order: (index + 1) * 100,
-      type: q.type === "Multiple Choice" ? "1" : "2",
-      options: q.options || [],
-      image: Array.isArray(q.image) ? (q.image[0] || "") : (q.image || ""),
-      createdAt: now,
-      __v: 0,
-      calculator: null,
-      checkGTP: null,
-    }));
+    const mappedQuestions = questions.map((q, index) => {
+      const code = typeCode(q.type);
+      return {
+        isdeleted: false,
+        _id: q._id || q.id || "",
+        bubble_id: q.bubble_id || null,
+        question: q.question || "",
+        ...(code === "1" ? { options: q.options || [] } : {}),
+        answer: q.answer || "",
+        explanation: "",
+        order: (index + 1) * 100,
+        type: code,
+        image: Array.isArray(q.image) ? (q.image[0] || "") : (q.image || ""),
+        createdAt: now,
+        __v: 0,
+        calculator: isCalculatorEnabled(q) ? true : null,
+        checkGTP: isChatGptEnabled(q) ? true : null,
+      };
+    });
     const dataStr = JSON.stringify(mappedQuestions, null, 2);
     const dataUri =
       "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
@@ -178,32 +297,100 @@ const ResultsDisplay = ({ results, onReset }) => {
               </div>
             </div>
 
-            {((question.image && question.image.length > 0) || copiedImage) && (
-              <div className="question-images">
-                {question.image && question.image.map((src, imgIndex) => (
-                  <div key={imgIndex} className="question-image-wrapper">
-                    <img
-                      src={`http://127.0.0.1:5001${src}`}
-                      alt={`Diagram ${imgIndex + 1}`}
-                      className="question-image"
-                    />
-                    <button
-                      className="copy-image-button"
-                      onClick={() => handleCopyImage(src)}
-                      aria-label="Copy image"
-                      title="Copy image to clipboard"
-                    >
-                      {copiedImage === src ? "Copied" : "Copy"}
-                    </button>
-                    <button
-                      className="remove-image-button"
-                      onClick={() => handleRemoveImage(index, imgIndex)}
-                      aria-label="Remove image"
-                    >
-                      ×
-                    </button>
-                  </div>
+            <div className="bubble-picker">
+              <label htmlFor={`bubble-select-${index}`}>Topic (bubble):</label>
+              <select
+                id={`bubble-select-${index}`}
+                value={question.bubble_id?._id || ""}
+                onChange={(e) => handleBubbleSelectChange(index, e.target.value)}
+                className="bubble-select"
+              >
+                <option value="">— No topic selected —</option>
+                {(expandedBubbleIndices.has(index)
+                  ? bubbles
+                  : bubbles.filter((b) => b._id === question.bubble_id?._id)
+                ).map((b) => (
+                  <option key={b._id} value={b._id}>
+                    {bubbleLabel(b)}
+                  </option>
                 ))}
+              </select>
+              {expandedBubbleIndices.has(index) ? (
+                <span className="bubble-expanded-hint">
+                  Showing all {bubbles.length} topics
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="load-all-bubbles-button"
+                  onClick={() => handleExpandBubbles(index)}
+                >
+                  Show all {bubbles.length} topics
+                </button>
+              )}
+              <span className={question.bubble_id ? "bubble-matched" : "bubble-unmatched"}>
+                {question.bubble_id ? "✓ matched" : "No topic selected"}
+              </span>
+            </div>
+
+            <div className="question-toggles">
+              <label className="toggle-checkbox">
+                <input
+                  type="checkbox"
+                  checked={isCalculatorEnabled(question)}
+                  onChange={() => handleToggleCalculator(index)}
+                />
+                Calculator allowed
+              </label>
+              <label className="toggle-checkbox">
+                <input
+                  type="checkbox"
+                  checked={isChatGptEnabled(question)}
+                  onChange={() => handleToggleChatGpt(index)}
+                />
+                AI-assisted grading (ChatGPT)
+              </label>
+            </div>
+
+            <div className="question-images">
+              {question.image && question.image.map((src, imgIndex) => (
+                <div key={imgIndex} className="question-image-wrapper">
+                  <img
+                    src={
+                      src.startsWith("/images/")
+                        ? `${FIREBASE_IMAGE_BASE}${src.slice("/images/".length)}?alt=media`
+                        : `http://127.0.0.1:5001${src}`
+                    }
+                    alt={`Diagram ${imgIndex + 1}`}
+                    className="question-image"
+                  />
+                  <button
+                    className="copy-image-button"
+                    onClick={() => handleCopyImage(src)}
+                    aria-label="Copy image"
+                    title="Copy image to clipboard"
+                  >
+                    {copiedImage === src ? "Copied" : "Copy"}
+                  </button>
+                  <button
+                    className="remove-image-button"
+                    onClick={() => handleRemoveImage(index, imgIndex)}
+                    aria-label="Remove image"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <div className="image-actions">
+                <button
+                  className="upload-image-button"
+                  onClick={() => {
+                    uploadTargetIndex.current = index;
+                    fileInputRef.current.click();
+                  }}
+                >
+                  + Upload Image
+                </button>
                 {copiedImage && (
                   <button
                     className="paste-image-button"
@@ -214,7 +401,7 @@ const ResultsDisplay = ({ results, onReset }) => {
                   </button>
                 )}
               </div>
-            )}
+            </div>
 
             <div className="question-text">
             {editingIndex === index ? (
@@ -330,10 +517,14 @@ const ResultsDisplay = ({ results, onReset }) => {
                       {question.options.map((option, optIndex) => (
                         <li
                           key={optIndex}
-                          className={option === question.answer ? "correct-answer" : ""}
+                          className={
+                            Array.isArray(question.answer)
+                              ? question.answer.includes(option) ? "correct-answer" : ""
+                              : option === question.answer ? "correct-answer" : ""
+                          }
                         >
                           <span dangerouslySetInnerHTML={{ __html: option }} />
-                          {option === question.answer && " ✓"}
+                          {(Array.isArray(question.answer) ? question.answer.includes(option) : option === question.answer) && " ✓"}
                         </li>
                       ))}
                     </ul>
@@ -354,45 +545,73 @@ const ResultsDisplay = ({ results, onReset }) => {
             <div className="correct-answer-section">
               <h4>Correct Answer:</h4>
               {editingAnswerIndex === index ? (
-                <div className="edit-question-block">
-                  <div className="html-toolbar">
-                    <button onClick={() => handleInsertHtmlTag('<b>', '</b>', answerTextareaRef, () => editedAnswer, setEditedAnswer)} title="Bold"><b>B</b></button>
-                    <button onClick={() => handleInsertHtmlTag('<i>', '</i>', answerTextareaRef, () => editedAnswer, setEditedAnswer)} title="Italic">I</button>
-                    <button onClick={() => handleInsertHtmlTag('<sub>', '</sub>', answerTextareaRef, () => editedAnswer, setEditedAnswer)} title="Subscript">X₂</button>
-                    <button onClick={() => handleInsertHtmlTag('<sup>', '</sup>', answerTextareaRef, () => editedAnswer, setEditedAnswer)} title="Superscript">X²</button>
-                    <button onClick={() => handleInsertHtmlTag('<br>', '', answerTextareaRef, () => editedAnswer, setEditedAnswer)} title="Line Break">&lt;br&gt;</button>
-                  </div>
-                  <textarea
-                    ref={answerTextareaRef}
-                    value={editedAnswer}
-                    onChange={(e) => setEditedAnswer(e.target.value)}
-                    rows={3}
-                    className="question-editor"
-                  />
+                <div className="options-editor">
+                  {editedAnswers.map((ans, ansIdx) => (
+                    <div key={ansIdx} className="option-edit-row">
+                      <input
+                        type="text"
+                        value={ans}
+                        onChange={(e) => {
+                          const updated = [...editedAnswers];
+                          updated[ansIdx] = e.target.value;
+                          setEditedAnswers(updated);
+                        }}
+                        className="option-input"
+                      />
+                      <button
+                        onClick={() => setEditedAnswers(editedAnswers.filter((_, i) => i !== ansIdx))}
+                        className="remove-option-button"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
                   <button
-                    onClick={() => {
-                      setQuestions(prev =>
-                        prev.map((q, i) =>
-                          i === index ? { ...q, answer: editedAnswer } : q
-                        )
-                      );
-                      setEditingAnswerIndex(null);
-                    }}
-                    className="save-button"
+                    onClick={() => setEditedAnswers([...editedAnswers, ""])}
+                    className="add-option-button"
                   >
-                    Save
+                    + Add Answer
                   </button>
-                  <button onClick={() => setEditingAnswerIndex(null)} className="cancel-button">
-                    Cancel
-                  </button>
+                  <div>
+                    <button
+                      onClick={() => {
+                        const filtered = editedAnswers.filter(a => a.trim() !== "");
+                        setQuestions(prev =>
+                          prev.map((q, i) =>
+                            i === index ? { ...q, answer: filtered.length === 1 ? filtered[0] : filtered } : q
+                          )
+                        );
+                        setEditingAnswerIndex(null);
+                      }}
+                      className="save-button"
+                    >
+                      Save
+                    </button>
+                    <button onClick={() => setEditingAnswerIndex(null)} className="cancel-button">
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <>
-                  <p className="answer">{question.answer || "Not set"}</p>
+                  {Array.isArray(question.answer) ? (
+                    question.answer.length > 0 ? (
+                      <ul className="answer-list">
+                        {question.answer.map((a, i) => <li key={i}>{a}</li>)}
+                      </ul>
+                    ) : (
+                      <p className="answer">Not set</p>
+                    )
+                  ) : (
+                    <p className="answer">{question.answer || "Not set"}</p>
+                  )}
                   <button
                     onClick={() => {
                       setEditingAnswerIndex(index);
-                      setEditedAnswer((question.answer || "").trim());
+                      const ans = question.answer;
+                      setEditedAnswers(
+                        Array.isArray(ans) ? [...ans] : ans ? [ans] : [""]
+                      );
                     }}
                     className="edit-button"
                   >
@@ -401,13 +620,6 @@ const ResultsDisplay = ({ results, onReset }) => {
                 </>
               )}
             </div>
-
-            {question.marks && (
-              <div className="marks-section">
-                <h4>Marks:</h4>
-                <p>{question.marks}</p>
-              </div>
-            )}
           </div>
         ))}
       </div>
@@ -436,6 +648,18 @@ const ResultsDisplay = ({ results, onReset }) => {
           </div>
         </div>
       )}
+      <div className="save-section">
+        <button onClick={handleSave} className="save-all-button">
+          Save
+        </button>
+      </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={handleUploadImage}
+      />
     </div>
   );
 };

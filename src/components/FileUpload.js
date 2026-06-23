@@ -3,9 +3,14 @@ import { useDropzone } from "react-dropzone";
 import axios from "axios";
 import "./FileUpload.css";
 
-const FileUpload = ({ onFileProcessed, onError, onLoadingChange }) => {
+const FileUpload = ({ onFileProcessed, onError, onLoadingChange, subjectId, boardId, disabled }) => {
   const onDrop = useCallback(
     async (acceptedFiles) => {
+      if (disabled) {
+        onError("Please select an exam board and subject first");
+        return;
+      }
+
       const file = acceptedFiles[0];
 
       if (!file) return;
@@ -19,6 +24,8 @@ const FileUpload = ({ onFileProcessed, onError, onLoadingChange }) => {
 
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("subject_id", subjectId || "");
+      formData.append("board_id", boardId || "");
 
       try {
         const response = await axios.post(
@@ -43,7 +50,7 @@ const FileUpload = ({ onFileProcessed, onError, onLoadingChange }) => {
         onLoadingChange(false);
       }
     },
-    [onFileProcessed, onError, onLoadingChange]
+    [onFileProcessed, onError, onLoadingChange, subjectId, boardId, disabled]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -52,18 +59,21 @@ const FileUpload = ({ onFileProcessed, onError, onLoadingChange }) => {
       "application/pdf": [".pdf"],
     },
     multiple: false,
+    disabled,
   });
 
   return (
     <div className="file-upload-container">
       <div
         {...getRootProps()}
-        className={`dropzone ${isDragActive ? "active" : ""}`}
+        className={`dropzone ${isDragActive ? "active" : ""} ${disabled ? "disabled" : ""}`}
       >
         <input {...getInputProps()} />
         <div className="upload-content">
           <div className="upload-icon">📄</div>
-          {isDragActive ? (
+          {disabled ? (
+            <p>Select an exam board and subject above to enable upload</p>
+          ) : isDragActive ? (
             <p>Drop the PDF here...</p>
           ) : (
             <>
