@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 import uuid
@@ -8,6 +9,10 @@ from dotenv import load_dotenv
 from pdf_processor import PDFProcessor, ALL_EXAMBOARDS, ALL_SUBJECTS, filter_bubbles
 
 load_dotenv()
+
+# pdf_processor configures the root logger's handlers (file + stream) at
+# import time above, so this logger inherits them via propagation.
+logger = logging.getLogger(__name__)
 
 import firebase_admin
 from firebase_admin import credentials, storage as fb_storage
@@ -30,6 +35,8 @@ os.makedirs("images", exist_ok=True)
 
 pdf_processor = PDFProcessor()
 
+PAGE_BATCH_SIZE = 10
+
 
 @app.route("/api/process-pdf", methods=["POST"])
 def process_pdf():
@@ -49,27 +56,76 @@ def process_pdf():
 
         start_time = time.time()
 
+        job_id = str(uuid.uuid4())
         filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], f"{job_id}.pdf")
         file.save(filepath)
 
         try:
-            result = pdf_processor.process_pdf(filepath, subject_id=subject_id, board_id=board_id)
-            processing_time = round(time.time() - start_time, 2)
-
-            result["metadata"] = {
-                **result.get("metadata", {}),
-                "processing_time": processing_time,
-                "filename": filename,
-                "subject_id": subject_id,
-                "board_id": board_id,
-            }
-
-            return jsonify(result)
-
-        finally:
+            result = pdf_processor.process_pdf(
+                filepath, subject_id=subject_id, board_id=board_id, start_page=0, page_count=PAGE_BATCH_SIZE
+            )
+        except Exception:
             if os.path.exists(filepath):
                 os.remove(filepath)
+            raise
+
+        processing_time = round(time.time() - start_time, 2)
+        has_more = result.get("metadata", {}).get("has_more", False)
+
+        result["metadata"] = {
+            **result.get("metadata", {}),
+            "processing_time": processing_time,
+            "filename": filename,
+            "subject_id": subject_id,
+            "board_id": board_id,
+            "job_id": job_id if has_more else None,
+        }
+
+        if not has_more and os.path.exists(filepath):
+            os.remove(filepath)
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({"error": f"Processing failed: {str(e)}"}), 500
+
+
+@app.route("/api/process-pdf-batch", methods=["POST"])
+def process_pdf_batch():
+    try:
+        data = request.get_json(silent=True) or {}
+        job_id = data.get("job_id")
+        start_page = data.get("start_page", 0)
+        subject_id = data.get("subject_id") or None
+        board_id = data.get("board_id") or None
+
+        if not job_id:
+            return jsonify({"error": "Missing job_id"}), 400
+
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], f"{job_id}.pdf")
+        if not os.path.exists(filepath):
+            return jsonify({"error": "No pending file found for this job_id — it may have already finished or expired"}), 404
+
+        start_time = time.time()
+        result = pdf_processor.process_pdf(
+            filepath, subject_id=subject_id, board_id=board_id, start_page=start_page, page_count=PAGE_BATCH_SIZE
+        )
+        processing_time = round(time.time() - start_time, 2)
+        has_more = result.get("metadata", {}).get("has_more", False)
+
+        result["metadata"] = {
+            **result.get("metadata", {}),
+            "processing_time": processing_time,
+            "subject_id": subject_id,
+            "board_id": board_id,
+            "job_id": job_id if has_more else None,
+        }
+
+        if not has_more and os.path.exists(filepath):
+            os.remove(filepath)
+
+        return jsonify(result)
 
     except Exception as e:
         return jsonify({"error": f"Processing failed: {str(e)}"}), 500
@@ -115,10 +171,22 @@ def save_to_firebase():
 
     bucket = fb_storage.bucket()
     url_map = {}
+    missing = []
     for local_path in local_paths:
         filename = os.path.basename(local_path)
         file_path = os.path.join("images", filename)
         if not os.path.exists(file_path):
+            # The local file is gone — most often because the shared
+            # images/ directory has no per-session isolation, so an
+            # unrelated cleanup (another save's /api/cleanup-images sweep,
+            # or manual housekeeping) can delete a file a different,
+            # still-open session is holding a stale reference to. Surface
+            # this instead of silently dropping the image, so a user
+            # editing a long-lived session can tell why some pictures
+            # didn't make it to Firebase rather than getting a save that
+            # quietly succeeds short of what they expected.
+            logger.warning(f"save-to-firebase: local image missing, skipped: {file_path}")
+            missing.append(local_path)
             continue
         ext = os.path.splitext(filename)[1].lower()
         content_type = content_types.get(ext, "image/png")
@@ -128,7 +196,7 @@ def save_to_firebase():
         # (environment.images base + filename + ?alt=media) — no token needed.
         url_map[local_path] = f"/images/{filename}"
 
-    return jsonify({"url_map": url_map})
+    return jsonify({"url_map": url_map, "missing": missing})
 
 
 @app.route("/api/examboards", methods=["GET"])

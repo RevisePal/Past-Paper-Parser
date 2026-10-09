@@ -42,6 +42,7 @@ function App() {
 
   const handleFileProcessed = (data) => {
     localStorage.removeItem("ppp_questions");
+    localStorage.removeItem("ppp_batch_meta");
     setResults(data);
     setError(null);
   };
@@ -54,6 +55,7 @@ function App() {
   const handleReset = () => {
     localStorage.removeItem("ppp_results");
     localStorage.removeItem("ppp_questions");
+    localStorage.removeItem("ppp_batch_meta");
     setResults(null);
     setError(null);
     setLoading(false);

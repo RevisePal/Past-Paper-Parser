@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useRef } from "react";
+import ReactCrop from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 import "./ResultsDisplay.css";
 
 const FIREBASE_IMAGE_BASE =
@@ -9,11 +11,41 @@ const bubbleLabel = (b) => `${b.name} — ${b.topic_id?.name || "Unknown topic"}
 
 const isCalculatorEnabled = (q) => q.calculator === true;
 const isChatGptEnabled = (q) => q.checkGTP === true;
+const isMultiSelectEnabled = (q) => q.multiSelect === true;
+
+// "Ã" / "Â" turning up as a lead byte almost always means a PDF/AI encoding
+// glitch (e.g. × or ÷ mis-generated) — these letters don't otherwise appear
+// in English-language exam content, so this is a reliable, low-noise flag.
+const MOJIBAKE_PATTERN = /[ÃÂ]/;
+
+const hasSuspiciousEncoding = (q) => {
+  const texts = [
+    q.question || "",
+    ...(q.options || []),
+    ...(Array.isArray(q.answer) ? q.answer : [q.answer || ""]),
+  ];
+  return texts.some((t) => MOJIBAKE_PATTERN.test(t));
+};
+
+const loadCachedBatchMeta = () => {
+  try {
+    return JSON.parse(localStorage.getItem("ppp_batch_meta"));
+  } catch {
+    return null;
+  }
+};
 
 const ResultsDisplay = ({ results, onReset }) => {
   const [editingIndex, setEditingIndex] = useState(null);
   const [editedText, setEditedText] = useState("");
-  const [questions, setQuestions] = useState([]);
+  const [questions, setQuestions] = useState(() => {
+    try {
+      const saved = localStorage.getItem("ppp_questions");
+      return saved ? JSON.parse(saved) : results?.questions || [];
+    } catch {
+      return results?.questions || [];
+    }
+  });
   const [editingOptionsIndex, setEditingOptionsIndex] = useState(null);
   const [editedOptions, setEditedOptions] = useState([]);
   const [editingAnswerIndex, setEditingAnswerIndex] = useState(null);
@@ -21,20 +53,46 @@ const ResultsDisplay = ({ results, onReset }) => {
   const [copiedImage, setCopiedImage] = useState(null);
   const [bubbles, setBubbles] = useState([]);
   const [expandedBubbleIndices, setExpandedBubbleIndices] = useState(new Set());
+  const [jobId, setJobId] = useState(
+    () => loadCachedBatchMeta()?.jobId ?? results?.metadata?.job_id ?? null
+  );
+  const [hasMore, setHasMore] = useState(
+    () => loadCachedBatchMeta()?.hasMore ?? results?.metadata?.has_more ?? false
+  );
+  const [nextStartPage, setNextStartPage] = useState(
+    () => loadCachedBatchMeta()?.nextStartPage ?? results?.metadata?.end_page ?? 0
+  );
+  const [totalPages, setTotalPages] = useState(
+    () => loadCachedBatchMeta()?.totalPages ?? results?.metadata?.total_pages ?? 0
+  );
+  const [extractingMore, setExtractingMore] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState(null);
+  const [showJsonViewer, setShowJsonViewer] = useState(false);
+  const [jsonCopied, setJsonCopied] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [cropTarget, setCropTarget] = useState(null); // { questionIndex, imgIndex, src }
+  const [crop, setCrop] = useState();
+  const [completedCrop, setCompletedCrop] = useState(null);
+  const [cropSaving, setCropSaving] = useState(false);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const uploadTargetIndex = useRef(null);
+  const undoTimeoutRef = useRef(null);
+  const cropImgRef = useRef(null);
 
   useEffect(() => {
-    if (results && results.questions) {
-      try {
-        const saved = localStorage.getItem("ppp_questions");
-        setQuestions(saved ? JSON.parse(saved) : results.questions);
-      } catch {
-        setQuestions(results.questions);
-      }
-    }
-  }, [results]);
+    return () => {
+      if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "ppp_batch_meta",
+      JSON.stringify({ jobId, hasMore, nextStartPage, totalPages })
+    );
+  }, [jobId, hasMore, nextStartPage, totalPages]);
 
   useEffect(() => {
     if (questions.length > 0) {
@@ -75,10 +133,69 @@ const ResultsDisplay = ({ results, onReset }) => {
     );
   };
 
+  const handleToggleMultiSelect = (index) => {
+    setQuestions((prev) =>
+      prev.map((q, i) => (i === index ? { ...q, multiSelect: !isMultiSelectEnabled(q) } : q))
+    );
+  };
+
+  const handleExtractMore = async () => {
+    if (!jobId || extractingMore) return;
+    setExtractingMore(true);
+    try {
+      const res = await fetch("http://127.0.0.1:5001/api/process-pdf-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          job_id: jobId,
+          start_page: nextStartPage,
+          subject_id: results?.metadata?.subject_id || "",
+          board_id: results?.metadata?.board_id || "",
+        }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      setQuestions((prev) => [...prev, ...(data.questions || [])]);
+      const meta = data.metadata || {};
+      setHasMore(meta.has_more || false);
+      setNextStartPage(meta.end_page ?? nextStartPage);
+      setJobId(meta.job_id ?? null);
+    } catch (err) {
+      console.error("Extract more failed:", err);
+    } finally {
+      setExtractingMore(false);
+    }
+  };
+
+  const UNDO_TIMEOUT_MS = 6000;
+
   const handleRemoveQuestion = (removeIndex) => {
+    const removedQuestion = questions[removeIndex];
     setQuestions((prevQuestions) =>
       prevQuestions.filter((_, idx) => idx !== removeIndex)
     );
+
+    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+    setPendingDelete({ question: removedQuestion, index: removeIndex });
+    undoTimeoutRef.current = setTimeout(() => {
+      setPendingDelete(null);
+      undoTimeoutRef.current = null;
+    }, UNDO_TIMEOUT_MS);
+  };
+
+  const handleUndoRemove = () => {
+    if (!pendingDelete) return;
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+      undoTimeoutRef.current = null;
+    }
+    setQuestions((prev) => {
+      const next = [...prev];
+      next.splice(pendingDelete.index, 0, pendingDelete.question);
+      return next;
+    });
+    setPendingDelete(null);
   };
 
   const handleRemoveImage = (questionIndex, imgIndex) => {
@@ -134,9 +251,82 @@ const ResultsDisplay = ({ results, onReset }) => {
     }
   };
 
+  const onCropImageLoad = (e) => {
+    const { width, height } = e.currentTarget;
+    const x = width * 0.05;
+    const y = height * 0.05;
+    const initial = { unit: "px", x, y, width: width * 0.9, height: height * 0.9 };
+    setCrop(initial);
+    setCompletedCrop(initial);
+  };
+
+  const handleCancelCrop = () => {
+    setCropTarget(null);
+    setCrop(undefined);
+    setCompletedCrop(null);
+  };
+
+  const handleApplyCrop = async () => {
+    const image = cropImgRef.current;
+    if (!image || !completedCrop || !cropTarget) return;
+    if (!completedCrop.width || !completedCrop.height) return;
+
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(completedCrop.width * scaleX);
+    canvas.height = Math.round(completedCrop.height * scaleY);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(
+      image,
+      completedCrop.x * scaleX,
+      completedCrop.y * scaleY,
+      completedCrop.width * scaleX,
+      completedCrop.height * scaleY,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    setCropSaving(true);
+    try {
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("Failed to generate cropped image");
+
+      const formData = new FormData();
+      formData.append("file", blob, "cropped.png");
+      const res = await fetch("http://127.0.0.1:5001/api/upload-image", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!data.path) throw new Error(data.error || "Upload failed");
+
+      const { questionIndex, imgIndex } = cropTarget;
+      setQuestions((prev) =>
+        prev.map((q, i) => {
+          if (i !== questionIndex) return q;
+          const imgs = Array.isArray(q.image) ? q.image : (q.image ? [q.image] : []);
+          return { ...q, image: imgs.map((p, ii) => (ii === imgIndex ? data.path : p)) };
+        })
+      );
+      handleCancelCrop();
+    } catch (err) {
+      console.error("Crop save failed:", err);
+    } finally {
+      setCropSaving(false);
+    }
+  };
+
   const handleSave = async () => {
+    setSaveStatus(null);
+    setSaving(true);
+
     // 1. Upload local images to Firebase Storage
     let urlMap = {};
+    let missingImages = [];
+    let firebaseError = null;
     try {
       const res = await fetch("http://127.0.0.1:5001/api/save-to-firebase", {
         method: "POST",
@@ -144,9 +334,15 @@ const ResultsDisplay = ({ results, onReset }) => {
         body: JSON.stringify({ questions }),
       });
       const data = await res.json();
-      urlMap = data.url_map || {};
+      if (!res.ok) {
+        firebaseError = data.error || "Failed to save images to Firebase.";
+      } else {
+        urlMap = data.url_map || {};
+        missingImages = data.missing || [];
+      }
     } catch (err) {
       console.error("Firebase upload failed:", err);
+      firebaseError = "Could not reach the backend to save images.";
     }
 
     // 2. Replace local paths with Firebase URLs in questions state
@@ -174,14 +370,29 @@ const ResultsDisplay = ({ results, onReset }) => {
     } catch (err) {
       console.error("Cleanup failed:", err);
     }
+
+    setSaving(false);
+    if (firebaseError) {
+      setSaveStatus({ type: "error", message: firebaseError });
+    } else if (missingImages.length > 0) {
+      setSaveStatus({
+        type: "error",
+        message: `Saved, but ${missingImages.length} image(s) could no longer be found on the server and were skipped — their questions kept the old (now broken) image link. This usually means the local image cache was cleared since you extracted them; re-extracting or re-uploading those images should fix it.`,
+      });
+    } else {
+      setSaveStatus({
+        type: "success",
+        message: `Saved — uploaded ${Object.keys(urlMap).length} image(s) to Firebase.`,
+      });
+    }
   };
 
   const typeCode = (t) =>
     t === "Multiple Choice" ? "1" : t === "Fill in the Blank" ? "2" : "3";
 
-  const downloadJSON = () => {
+  const buildExportQuestions = () => {
     const now = new Date().toISOString();
-    const mappedQuestions = questions.map((q, index) => {
+    return questions.map((q, index) => {
       const code = typeCode(q.type);
       return {
         isdeleted: false,
@@ -193,14 +404,20 @@ const ResultsDisplay = ({ results, onReset }) => {
         explanation: "",
         order: (index + 1) * 100,
         type: code,
-        image: Array.isArray(q.image) ? (q.image[0] || "") : (q.image || ""),
+        // Kept as an array — the mobile app now renders/fetches all images for a
+        // question, not just the first one.
+        image: Array.isArray(q.image) ? q.image.filter(Boolean) : q.image ? [q.image] : [],
         createdAt: now,
         __v: 0,
         calculator: isCalculatorEnabled(q) ? true : null,
         checkGTP: isChatGptEnabled(q) ? true : null,
+        multiSelect: code === "1" && isMultiSelectEnabled(q) ? true : null,
       };
     });
-    const dataStr = JSON.stringify(mappedQuestions, null, 2);
+  };
+
+  const downloadJSON = () => {
+    const dataStr = JSON.stringify(buildExportQuestions(), null, 2);
     const dataUri =
       "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
 
@@ -210,6 +427,13 @@ const ResultsDisplay = ({ results, onReset }) => {
     linkElement.setAttribute("href", dataUri);
     linkElement.setAttribute("download", exportFileDefaultName);
     linkElement.click();
+  };
+
+  const handleCopyJSON = () => {
+    navigator.clipboard.writeText(JSON.stringify(buildExportQuestions(), null, 2)).then(() => {
+      setJsonCopied(true);
+      setTimeout(() => setJsonCopied(false), 1500);
+    });
   };
 
   const handleInsertHtmlTag = (tag, closeTag, ref = textareaRef, getText = () => editedText, setText = setEditedText) => {
@@ -269,6 +493,9 @@ const ResultsDisplay = ({ results, onReset }) => {
       <div className="results-header">
         <h2>Extracted Questions ({questions.length})</h2>
         <div className="header-actions">
+          <button onClick={() => setShowJsonViewer(true)} className="view-json-button">
+            View JSON
+          </button>
           <button onClick={downloadJSON} className="download-button">
             Download JSON
           </button>
@@ -277,6 +504,72 @@ const ResultsDisplay = ({ results, onReset }) => {
           </button>
         </div>
       </div>
+
+      {showJsonViewer && (
+        <div className="json-modal-overlay" onClick={() => setShowJsonViewer(false)}>
+          <div className="json-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="json-modal-header">
+              <h3>Questions JSON</h3>
+              <div className="json-modal-actions">
+                <button onClick={handleCopyJSON} className="copy-json-button">
+                  {jsonCopied ? "Copied!" : "Copy"}
+                </button>
+                <button
+                  onClick={() => setShowJsonViewer(false)}
+                  className="close-json-button"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            <pre className="json-modal-content">
+              {JSON.stringify(buildExportQuestions(), null, 2)}
+            </pre>
+          </div>
+        </div>
+      )}
+
+      {cropTarget && (
+        <div className="crop-modal-overlay" onClick={handleCancelCrop}>
+          <div className="crop-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="crop-modal-header">
+              <h3>Crop Image</h3>
+              <button onClick={handleCancelCrop} className="close-json-button" aria-label="Close">
+                ×
+              </button>
+            </div>
+            <div className="crop-modal-content">
+              <ReactCrop
+                crop={crop}
+                onChange={(_, percentCrop) => setCrop(percentCrop)}
+                onComplete={(c) => setCompletedCrop(c)}
+              >
+                <img
+                  ref={cropImgRef}
+                  src={
+                    cropTarget.src.startsWith("/images/")
+                      ? `${FIREBASE_IMAGE_BASE}${cropTarget.src.slice("/images/".length)}?alt=media`
+                      : `http://127.0.0.1:5001${cropTarget.src}`
+                  }
+                  alt="Crop target"
+                  crossOrigin="anonymous"
+                  onLoad={onCropImageLoad}
+                  style={{ maxWidth: "100%", maxHeight: "70vh" }}
+                />
+              </ReactCrop>
+            </div>
+            <div className="crop-modal-actions">
+              <button onClick={handleCancelCrop} className="cancel-crop-button" disabled={cropSaving}>
+                Cancel
+              </button>
+              <button onClick={handleApplyCrop} className="apply-crop-button" disabled={cropSaving}>
+                {cropSaving ? "Saving..." : "Apply Crop"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="questions-list">
         {questions.map((question, index) => (
@@ -287,6 +580,14 @@ const ResultsDisplay = ({ results, onReset }) => {
                 <span className="question-type">
                   {question.type || "Multiple Choice"}
                 </span>
+                {hasSuspiciousEncoding(question) && (
+                  <span
+                    className="encoding-warning"
+                    title="Contains 'Ã' or 'Â' — usually a sign a special character (e.g. ×, ÷) got mis-generated. Please check the text."
+                  >
+                    ⚠ Check encoding
+                  </span>
+                )}
                 <button
                   onClick={() => handleRemoveQuestion(index)}
                   className="remove-button"
@@ -350,6 +651,22 @@ const ResultsDisplay = ({ results, onReset }) => {
                 />
                 AI-assisted grading (ChatGPT)
               </label>
+              {question.type === "Multiple Choice" && (
+                <label className="toggle-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={isMultiSelectEnabled(question)}
+                    onChange={() => handleToggleMultiSelect(index)}
+                  />
+                  Multiple correct answers (select all that apply)
+                  {isMultiSelectEnabled(question) &&
+                    (!Array.isArray(question.answer) || question.answer.length < 2) && (
+                      <span className="multiselect-warning">
+                        ⚠ needs 2+ correct answers set below
+                      </span>
+                    )}
+                </label>
+              )}
             </div>
 
             <div className="question-images">
@@ -371,6 +688,18 @@ const ResultsDisplay = ({ results, onReset }) => {
                     title="Copy image to clipboard"
                   >
                     {copiedImage === src ? "Copied" : "Copy"}
+                  </button>
+                  <button
+                    className="crop-image-button"
+                    onClick={() => {
+                      setCrop(undefined);
+                      setCompletedCrop(null);
+                      setCropTarget({ questionIndex: index, imgIndex, src });
+                    }}
+                    aria-label="Crop image"
+                    title="Crop image"
+                  >
+                    Crop
                   </button>
                   <button
                     className="remove-image-button"
@@ -624,6 +953,23 @@ const ResultsDisplay = ({ results, onReset }) => {
         ))}
       </div>
 
+      {hasMore && (
+        <div className="extract-more-section">
+          <p className="extract-more-progress">
+            Extracted pages 1–{nextStartPage} of {totalPages}
+          </p>
+          <button
+            onClick={handleExtractMore}
+            disabled={extractingMore}
+            className="extract-more-button"
+          >
+            {extractingMore
+              ? "Extracting..."
+              : `Extract Next ${Math.min(10, totalPages - nextStartPage)} Pages (${nextStartPage + 1}–${Math.min(nextStartPage + 10, totalPages)})`}
+          </button>
+        </div>
+      )}
+
       {results.metadata && (
         <div className="metadata-section">
           <h3>Processing Information</h3>
@@ -649,8 +995,13 @@ const ResultsDisplay = ({ results, onReset }) => {
         </div>
       )}
       <div className="save-section">
-        <button onClick={handleSave} className="save-all-button">
-          Save
+        {saveStatus && (
+          <p className={saveStatus.type === "error" ? "save-status-error" : "save-status-success"}>
+            {saveStatus.message}
+          </p>
+        )}
+        <button onClick={handleSave} disabled={saving} className="save-all-button">
+          {saving ? "Saving..." : "Save"}
         </button>
       </div>
       <input
@@ -660,6 +1011,15 @@ const ResultsDisplay = ({ results, onReset }) => {
         style={{ display: "none" }}
         onChange={handleUploadImage}
       />
+
+      {pendingDelete && (
+        <div className="undo-toast" role="status">
+          <span>Question removed.</span>
+          <button onClick={handleUndoRemove} className="undo-button">
+            Undo
+          </button>
+        </div>
+      )}
     </div>
   );
 };

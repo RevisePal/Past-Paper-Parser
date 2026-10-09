@@ -2,3 +2,9 @@ node_modules
 .env
 .DS_Store
 backend/venv/
+backend/__pycache__/
+backend/serviceAccountKey.json
+backend/images/
+backend/uploads/
+backend/pdf_processor.log
+*.pyc
