@@ -3,6 +3,7 @@ import { useRef } from "react";
 import ReactCrop from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import "./ResultsDisplay.css";
+import { toAppPlainText, toAppQuestionHtml, toSubscript, toSuperscript } from "../utils/scripts";
 
 const FIREBASE_IMAGE_BASE =
   "https://firebasestorage.googleapis.com/v0/b/cloudpass-f5536.appspot.com/o/images%2F";
@@ -398,9 +399,14 @@ const ResultsDisplay = ({ results, onReset }) => {
         isdeleted: false,
         _id: q._id || q.id || "",
         bubble_id: q.bubble_id || null,
-        question: q.question || "",
-        ...(code === "1" ? { options: q.options || [] } : {}),
-        answer: q.answer || "",
+        // Only export markup the mobile app can display (see utils/scripts.js).
+        // Options and answers go through the same function so multiple-choice
+        // answers still match their option strings exactly.
+        question: toAppQuestionHtml(q.question || ""),
+        ...(code === "1" ? { options: (q.options || []).map(toAppPlainText) } : {}),
+        answer: Array.isArray(q.answer)
+          ? q.answer.map(toAppPlainText)
+          : toAppPlainText(q.answer || ""),
         explanation: "",
         order: (index + 1) * 100,
         type: code,
@@ -473,6 +479,24 @@ const ResultsDisplay = ({ results, onReset }) => {
     setTimeout(() => {
       textarea.selectionStart = newCursorPosition;
       textarea.selectionEnd = newCursorPosition;
+      textarea.focus();
+    }, 0);
+  };
+
+  // Rewrites the selected text as Unicode super/subscript characters (which
+  // the mobile app can display) rather than wrapping it in <sup>/<sub> tags.
+  const handleConvertSelection = (convert) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const { selectionStart: start, selectionEnd: end } = textarea;
+    if (start === end) {
+      textarea.focus();
+      return;
+    }
+    const converted = convert(editedText.substring(start, end));
+    setEditedText(editedText.substring(0, start) + converted + editedText.substring(end));
+    setTimeout(() => {
+      textarea.selectionStart = textarea.selectionEnd = start + converted.length;
       textarea.focus();
     }, 0);
   };
@@ -736,10 +760,10 @@ const ResultsDisplay = ({ results, onReset }) => {
             {editingIndex === index ? (
   <div className="edit-question-block">
     <div className="html-toolbar">
-  <button onClick={() => handleInsertHtmlTag('<b>', '</b>')} title="Bold"><b>B</b></button>
-  <button onClick={() => handleInsertHtmlTag('<i>', '</i>')} title="Italic">I</button>
-  <button onClick={() => handleInsertHtmlTag('<sub>', '</sub>')} title="Subscript">X₂</button>
-  <button onClick={() => handleInsertHtmlTag('<sup>', '</sup>')} title="Superscript">X²</button>
+  <button onClick={() => handleInsertHtmlTag('<strong>', '</strong>')} title="Bold"><b>B</b></button>
+  <button onClick={() => handleInsertHtmlTag('<em>', '</em>')} title="Italic">I</button>
+  <button onClick={() => handleConvertSelection(toSubscript)} title="Subscript: select text first (e.g. the 2 in CO2)">X₂</button>
+  <button onClick={() => handleConvertSelection(toSuperscript)} title="Superscript: select text first (e.g. the 3 in cm3; a lone o becomes °)">X²</button>
   <button onClick={() => handleInsertHtmlTag('<br>', '')} title="Line Break">&lt;br&gt;</button>
 </div>
     <textarea
@@ -780,7 +804,7 @@ const ResultsDisplay = ({ results, onReset }) => {
     <button
       onClick={() => {
         setEditingIndex(index);
-        setEditedText((question.question || "").trim());
+        setEditedText(toAppQuestionHtml(question.question || "").trim());
       }}
       className="edit-button"
     >

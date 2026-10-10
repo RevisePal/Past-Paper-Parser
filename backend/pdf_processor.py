@@ -1081,8 +1081,8 @@ INSTRUCTIONS:
 1. Combine any introductory stem shared across sub-questions (e.g. 01 with 01.1, 01.2, 01.3...) into a single self-contained question — every sub-part must carry the shared context, not just the first.
 2. Remove question numbers (e.g. "01.1"), mark allocations (e.g. "[2 marks]", "(3)"), and instructional phrases (e.g. "Tick one box", "Choose answers from the box", "Complete the sentence") from the question text.
 3. Do NOT include the text content of tables or graphs in the question.
-4. In the "question" field only: use HTML <br> tags for line breaks (do NOT use \\n), <b>/<i> where the source shows emphasis, and <sub>/<sup> for chemical formulas, isotopes, ionic charges, units with exponents, and mathematical exponents (e.g. CO<sub>2</sub>, Na<sup>+</sup>, m<sup>3</sup>, x<sup>2</sup>).
-5. The "answer" field must always be plain text — never use <sub>, <sup>, <br>, or any other HTML tag there, even if the question text uses them for the same value (e.g. write "m/s2", not "m/s<sup>2</sup>").
+4. In the "question" field only: use HTML <br> tags for line breaks (do NOT use \\n) and <strong>/<em> where the source shows emphasis (e.g. <em>Rattus rattus</em>). <br>, <strong> and <em> are the ONLY tags allowed — never use <b>, <i>, <span>, <u>, <sub>, <sup> or any other tag, and never put tags around a ____ blank. NEVER use <sub> or <sup> tags anywhere — the app cannot display them. Write subscripts and superscripts as Unicode characters instead, in the question and options alike: chemical formulas, isotopes, ionic charges, units with exponents, and mathematical exponents (e.g. CO₂, Na⁺, SO₄²⁻, m³, cm³, m/s², 10⁻⁸, x²); write degrees as ° (e.g. 25 °C), and fractions inline as a/b (e.g. 3/5, m/s).
+5. The "answer" field must always be plain text — never use <br> or any other HTML tag there. For "Short Answer" and "Fill in the Blank", write values the way a student would type them, without Unicode superscripts/subscripts (e.g. "m/s2", not "m/s²").
 6. Never use the × or ÷ Unicode symbols anywhere — write "x" for multiplication and "/" for division instead (e.g. "mass number x percentage", not "mass number × percentage"). These symbols are unreliable to generate correctly.
 
 QUESTION TYPE — choose exactly one:
@@ -1100,7 +1100,7 @@ Within "Short Answer", format the answer to fit the sub-format:
 
 CRITICAL — for "Multiple Choice":
 - "question" contains ONLY the stem — never any option text.
-- Every option goes in "options", copied verbatim (incl. any HTML tags).
+- Every option goes in "options", copied verbatim as plain text with no HTML tags (Unicode characters like CO₂ are fine).
 - Each "answer" entry must be a byte-for-byte copy of a chosen option string — the UI matches by exact string equality to highlight the correct option(s). Most questions have exactly one correct option; only include more than one entry when the question explicitly asks for multiple selections.
 - Set "multi_select" to true ONLY when the question explicitly requires selecting more than one option (e.g. "Tick two boxes", "Select all that apply", "Choose two answers") — in that case "answer" must have 2+ entries. Otherwise set "multi_select" to false, and pick the single best option rather than hedging with extra "answer" entries.
 
