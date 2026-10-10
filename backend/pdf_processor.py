@@ -114,8 +114,17 @@ class PDFProcessor:
             )
 
             logger.info("Step 3: Segmenting into question chunks...")
-            question_chunks = self._segment_questions(cleaned_text)
+            question_chunks, restart_page = self._segment_questions(cleaned_text)
             logger.info(f"✓ Found {len(question_chunks)} question chunks")
+            if restart_page is not None:
+                # The paper restarts its question numbering partway through
+                # this batch (e.g. a new difficulty section starting back at
+                # "1") — stop reporting progress at the page where that
+                # happens rather than claiming the untouched remainder was
+                # processed, so the next "Extract More" batch starts there
+                # and sees a fresh "1" exactly like the start of any paper.
+                actual_end_page = restart_page
+                logger.info(f"Numbering restart detected at page {restart_page}; capping batch there")
 
             bubble_lookup = build_bubble_lookup(subject_id, board_id)
             if not bubble_lookup and (subject_id or board_id):
@@ -203,9 +212,66 @@ class PDFProcessor:
     _SUBLETTER_RE = re.compile(r"^\(([a-h])\)")
     _SUBROMAN_RE = re.compile(r"^\(([ivx]{1,4})\)", re.IGNORECASE)
 
+    def _sort_blocks_reading_order(self, blocks: list) -> list:
+        """Reorder text blocks into visual reading order (top-to-bottom, then
+        left-to-right within a row), instead of trusting the PDF's content
+        stream order.
+
+        Some PDFs — typically ones rendered from HTML/CSS by a browser engine
+        rather than traditionally typeset — emit text in DOM/paint order,
+        which doesn't always match layout order. A common case: a question's
+        number badge and its options' A/B/C/D letters sit in a narrow left
+        gutter, each its own block, positioned at the same height as (but
+        extracted well before or after) the stem/option text in the main
+        column to their right. Taking blocks in stream order then glues a
+        batch of bare gutter labels onto the wrong content entirely. Two
+        blocks are grouped into the same "row" when their vertical extents
+        overlap; rows are then ordered top-to-bottom and, within a row,
+        blocks left-to-right. A normal single-column document's blocks don't
+        vertically overlap each other, so every row is a singleton and this
+        reproduces the original top-to-bottom order unchanged.
+        """
+        n = len(blocks)
+        if n <= 1:
+            return list(blocks)
+
+        parent = list(range(n))
+
+        def find(i: int) -> int:
+            while parent[i] != i:
+                parent[i] = parent[parent[i]]
+                i = parent[i]
+            return i
+
+        order = sorted(range(n), key=lambda i: blocks[i][1])
+        for a in range(n):
+            i = order[a]
+            y1_i = blocks[i][3]
+            for b in range(a + 1, n):
+                j = order[b]
+                if blocks[j][1] >= y1_i:
+                    break  # sorted by y0 — no later block can overlap i either
+                pi, pj = find(i), find(j)
+                if pi != pj:
+                    parent[pi] = pj
+
+        rows: Dict[int, List[int]] = {}
+        for i in range(n):
+            rows.setdefault(find(i), []).append(i)
+
+        row_list = [
+            (min(blocks[i][1] for i in members), sorted(members, key=lambda i: blocks[i][0]))
+            for members in rows.values()
+        ]
+        row_list.sort(key=lambda r: r[0])
+
+        return [blocks[i] for _, members in row_list for i in members]
+
     def _build_page_text_with_markers(self, page, path_state: list) -> Tuple[str, Dict[str, float]]:
-        """Reconstruct this page's plain text (equal to page.get_text()) while
-        splicing sentinels in front of bold question-number and sub-part markers,
+        """Reconstruct this page's plain text, normalized into reading order
+        (see _sort_blocks_reading_order — this can differ from page.get_text()
+        for a PDF whose content stream order doesn't match its visual layout),
+        while splicing sentinels in front of bold question-number and sub-part markers,
         for papers that number questions with plain integers ('1', '2', ...) and
         letter/roman sub-parts ('(a)', '(i)') instead of CAIE's zero-padded
         '01'/'01.1' scheme. Also returns {dotted_path: y0} for every marker found
@@ -228,10 +294,38 @@ class PDFProcessor:
         """
         out = []
         q_y: Dict[str, float] = {}
-        for block in page.get_text("blocks"):
+        page_height = page.rect.height
+        page_width = page.rect.width
+
+        # A table's cell text (e.g. a grid of MC options like "A carbon
+        # oxygen nitrogen B hydrogen carbon oxygen...") reads exactly like a
+        # list of labelled options once flattened to plain text, so the AI
+        # tends to parse it as such — producing garbled multi-word "options"
+        # instead of recognizing a table that belongs in an attached image
+        # (already captured separately; see _collect_region_rects). Replace
+        # each table's text with a one-time placeholder instead of leaving
+        # the raw cell text for the AI to misinterpret.
+        table_rects = self._find_table_rects(page)
+        tables_announced = set()
+
+        for block in self._sort_blocks_reading_order(page.get_text("blocks")):
             block_text = block[4]
-            lines = block_text.split("\n")
             rect = fitz.Rect(block[:4])
+            table_idx = next(
+                (
+                    i for i, trect in enumerate(table_rects)
+                    if not (rect & trect).is_empty
+                    and (rect & trect).get_area() / max(rect.get_area(), 1) > 0.6
+                ),
+                None,
+            )
+            if table_idx is not None:
+                if table_idx not in tables_announced:
+                    tables_announced.add(table_idx)
+                    out.append("[table — see attached image]\n")
+                continue
+
+            lines = block_text.split("\n")
             dict_lines = [
                 line for d_block in page.get_text("dict", clip=rect)["blocks"]
                 for line in d_block.get("lines", [])
@@ -245,22 +339,38 @@ class PDFProcessor:
                 if line.strip():
                     dline = dict_lines[dict_idx] if can_check_bold else None
                     dict_idx += 1
-                    line, labels = self._splice_line_marker(line, dline, path_state)
+                    line, labels = self._splice_line_marker(line, dline, path_state, page_height)
                     for label, y0 in labels:
                         q_y.setdefault(label, y0)
                 rebuilt_lines.append(line)
             out.append("\n".join(rebuilt_lines))
         return "".join(out), q_y
 
+    # How close to the page's bottom edge counts as a running footer (e.g. a
+    # page number) rather than page content. Chosen with margin above a real
+    # observed footer page-number at ~64pt from the bottom edge. Deliberately
+    # bottom-only, not top-and-bottom: a real question number has been seen
+    # starting as little as ~49pt from the top of its page, so excluding a
+    # symmetric top margin on unproven suspicion of a header one day would
+    # cost more (silently dropping real questions) than it defends against.
+    _FOOTER_MARGIN = 70
+
     def _splice_line_marker(
-        self, line: str, dline: Optional[dict], path_state: list
+        self, line: str, dline: Optional[dict], path_state: list, page_height: Optional[float] = None
     ) -> Tuple[str, List[Tuple[str, float]]]:
         if dline is None or not dline["spans"]:
             return line, []
+        if page_height is not None:
+            y0 = dline["bbox"][1]
+            if y0 > page_height - self._FOOTER_MARGIN:
+                # A running footer (e.g. a page number) repeats at the
+                # same position on every page — unlike a real question marker,
+                # which is page content, not page furniture.
+                return line, []
         if "bold" not in dline["spans"][0]["font"].lower():
             return line, []
 
-        y0 = dline["bbox"][1]
+        y0 = dline["bbox"][1]  # still needed below even if page_height was None above
         lead_ws = line[: len(line) - len(line.lstrip())]
         rest = line.lstrip()
         labels: List[Tuple[str, float]] = []
@@ -447,6 +557,35 @@ class PDFProcessor:
         pix.save(os.path.join(images_dir, filename))
         return f"/api/images/{filename}"
 
+    def _find_table_rects(self, page) -> List[fitz.Rect]:
+        """Find real tables on this page via PyMuPDF's table finder, filtering
+        out both noise (too small to be a real table) and a different
+        failure mode in the other direction: on a page with several unrelated
+        aligned-text structures (e.g. one genuine small table plus some
+        option-lettering columns elsewhere), the heuristic table finder can
+        merge everything it sees into one "table" spanning nearly the whole
+        page. A real MC-option table has been observed at ~20% of page
+        height; capping at 60% comfortably allows a bigger real table while
+        rejecting a whole-page false merge (observed at ~83%)."""
+        page_width = page.rect.width
+        page_height = page.rect.height
+        rects = []
+        try:
+            for table in page.find_tables():
+                rect = fitz.Rect(table.bbox)
+                if (
+                    not rect.is_empty
+                    and rect.width >= page_width * 0.2
+                    and rect.height >= 20
+                    and rect.height <= page_height * 0.6
+                ):
+                    rects.append(rect)
+        except AttributeError:
+            pass  # find_tables() requires PyMuPDF >= 1.23
+        except Exception as e:
+            logger.warning(f"Table detection failed: {e}")
+        return rects
+
     def _collect_region_rects(self, page, page_num: int) -> List[fitz.Rect]:
         """Collect unique candidate rects for word banks, tables, and bordered diagrams."""
         page_width = page.rect.width
@@ -469,6 +608,18 @@ class PDFProcessor:
             if not page.get_textbox(rect).strip():  # no text inside
                 continue
             candidates.append(rect)
+
+        # PyMuPDF table finder — catches tables whose borders are line
+        # segments, not rect paths, or that have no drawn border at all (a
+        # borderless table laid out with whitespace/alignment only). Run
+        # before the cluster-based fallback below: the dedup pass at the end
+        # of this method keeps whichever candidate was added first when two
+        # overlap, so a precise, structurally-detected table needs to be in
+        # the list before the speculative cluster scan has a chance to
+        # engulf the same area in an imprecise, oversized region.
+        for rect in self._find_table_rects(page):
+            candidates.append(rect)
+            logger.debug(f"Page {page_num}: table found at y={rect.y0:.0f}")
 
         # Line graphs (axes, gridlines, the plotted line itself) and shaded
         # illustrations (solid-fill shapes, no stroke) are drawn as dozens of
@@ -554,18 +705,6 @@ class PDFProcessor:
                     union |= brect
 
             candidates.append(union)
-
-        # PyMuPDF table finder — catches tables whose borders are line segments, not rect paths
-        try:
-            for table in page.find_tables():
-                rect = fitz.Rect(table.bbox)
-                if not rect.is_empty and rect.width >= page_width * 0.2 and rect.height >= 20:
-                    candidates.append(rect)
-                    logger.debug(f"Page {page_num}: table found at y={rect.y0:.0f}")
-        except AttributeError:
-            pass  # find_tables() requires PyMuPDF ≥ 1.23
-        except Exception as e:
-            logger.warning(f"Table detection failed on page {page_num}: {e}")
 
         # Deduplicate: prefer larger rects (already sorted that way for drawings)
         unique = []
@@ -724,13 +863,19 @@ class PDFProcessor:
 
         return "Short Answer"
 
-    def _segment_questions(self, text: str) -> List[Dict]:
+    def _segment_questions(self, text: str) -> Tuple[List[Dict], Optional[int]]:
         logger.info("Segmenting text into question chunks...")
 
         text = re.sub(r"0\s*(\d)\s*\.\s*(\d)", r"0\1.\2", text)
         text = re.sub(r"\b0\s*(\d)(?!\.\d)\b", r"0\1", text)
 
-        question_pattern = r"(0\d(?:\.\d)?[\s\S]*?)(?=\n\s*0\d(?:\.\d)?|\Z)"
+        # (?<![\d.]) keeps "0\d" from matching inside a larger number it's not
+        # actually the start of — a copyright year ("© 2026"), a decimal value
+        # ("0.04%") — both contain a bare "0\d" substring that's otherwise
+        # indistinguishable from a real zero-padded question number. Only
+        # needed on the opening capture: the lookahead's "0\d" is already
+        # preceded by "\n\s*", which can never be a digit or a period.
+        question_pattern = r"(?<![\d.])(0\d(?:\.\d)?[\s\S]*?)(?=\n\s*0\d(?:\.\d)?|\Z)"
         chunks = re.findall(question_pattern, text)
 
         logger.info(f"Found {len(chunks)} question chunks using regex pattern")
@@ -747,16 +892,16 @@ class PDFProcessor:
             # during extraction (see _build_page_text_with_markers) as
             # "<<<QSTART_n>>>"/"<<<SUBLETTER_x>>>"/"<<<SUBROMAN_x>>>"
             # sentinels, and prefer whichever path finds more structure.
-            bare_chunks = self._segment_bare_numbered_questions(text)
+            bare_chunks, restart_page = self._segment_bare_numbered_questions(text)
             if len(bare_chunks) > len(chunks):
                 logger.info(
                     f"Found {len(bare_chunks)} question chunks using bare-number fallback "
                     f"(preferred over {len(chunks)} from regex pattern)"
                 )
-                return bare_chunks
+                return bare_chunks, restart_page
             if not chunks:
                 logger.info(f"Found {len(bare_chunks)} question chunks using bare-number fallback")
-                return bare_chunks
+                return bare_chunks, restart_page
 
         # Build a lookup of character positions to page numbers using markers
         page_positions = []
@@ -785,7 +930,7 @@ class PDFProcessor:
             search_start = chunk_pos + 1 if chunk_pos != -1 else search_start
 
             clean_text = re.sub(
-                r"<<<PAGE_\d+>>>|<<<QSTART_\d+>>>|<<<SUBLETTER_[a-h]>>>|<<<SUBROMAN_[a-z]+>>>", "", current_chunk
+                r"<<<PAGE_\d+>>>|<<<QSTART_[\w-]+>>>|<<<SUBLETTER_[a-h]>>>|<<<SUBROMAN_[a-z]+>>>", "", current_chunk
             ).strip()
             parsed.append({"question_number": qnum, "text": clean_text, "page_num": page_num})
 
@@ -818,9 +963,9 @@ class PDFProcessor:
             i += 1
 
         logger.info(f"After merging, total question chunks: {len(merged_chunks)}")
-        return merged_chunks
+        return merged_chunks, None
 
-    def _segment_bare_numbered_questions(self, text: str) -> List[Dict]:
+    def _segment_bare_numbered_questions(self, text: str) -> Tuple[List[Dict], Optional[int]]:
         """Segment a paper that numbers questions with plain integers ('1', '2',
         ...) and letters/romans for sub-parts ('(a)', '(i)') instead of CAIE's
         zero-padded '01'/'01.1' scheme, by splitting on the sentinels spliced in
@@ -842,7 +987,7 @@ class PDFProcessor:
                     break
             return page
 
-        marker_re = re.compile(r"<<<QSTART_(\d+)>>>|<<<SUBLETTER_([a-h])>>>|<<<SUBROMAN_([a-z]+)>>>")
+        marker_re = re.compile(r"<<<QSTART_([\w-]+)>>>|<<<SUBLETTER_([a-h])>>>|<<<SUBROMAN_([a-z]+)>>>")
         raw_matches = list(marker_re.finditer(text))
 
         # A bold, standalone digit isn't always a question number — an MC
@@ -862,11 +1007,40 @@ class PDFProcessor:
 
         matches = [m for m in raw_matches if m.group(1) is None or qstart_is_isolated(m.start())]
         if not any(m.group(1) is not None for m in matches):
-            return []
+            return [], None
         # Drop any sub-part marker before the first surviving top-level number —
         # it can't be meaningfully nested without one.
         first_qstart = next(i for i, m in enumerate(matches) if m.group(1) is not None)
         matches = matches[first_qstart:]
+
+        # A paper split into separate sections (e.g. "Easy Questions 1, 2,
+        # 3...", then "Medium Questions 1, 2, 3...") restarts its numbering
+        # instead of counting straight through. Rather than track each
+        # section as its own namespace, treat the restart as the end of this
+        # extraction pass — stop here and let the next "Extract More" batch
+        # pick back up from that page, where the restarted numbering is
+        # simply a fresh "1" handled the same as any other paper.
+        restart_page = None
+        restart_pos = None
+        last_num = None
+        cutoff = len(matches)
+        for idx, m in enumerate(matches):
+            if m.group(1) is None:
+                continue
+            num = int(m.group(1))
+            if last_num is not None and num <= last_num:
+                restart_page = get_page_for_pos(m.start())
+                restart_pos = m.start()
+                cutoff = idx
+                break
+            last_num = num
+        matches = matches[:cutoff]
+        if not matches:
+            return [], restart_page
+        # Cap the last retained match's segment at the restart position (not
+        # end-of-text) — otherwise, with no next match left in the truncated
+        # list to bound it, it would swallow everything after the restart too.
+        text_limit = restart_pos if restart_pos is not None else len(text)
 
         items = []
         path: List[str] = []
@@ -878,7 +1052,7 @@ class PDFProcessor:
             else:
                 path = path[:2] + [m.group(3)]
 
-            seg_end = matches[idx + 1].start() if idx + 1 < len(matches) else len(text)
+            seg_end = matches[idx + 1].start() if idx + 1 < len(matches) else text_limit
             seg_text = re.sub(r"<<<PAGE_\d+>>>", "", text[m.end():seg_end]).strip()
             items.append({"path": tuple(path), "text": seg_text, "page_num": get_page_for_pos(m.start())})
 
@@ -910,7 +1084,7 @@ class PDFProcessor:
                 "page_num": leaf["page_num"],
                 "page_nums": ancestor_pages,
             })
-        return merged_chunks
+        return merged_chunks, restart_page
 
     def _postprocess_question_text(self, text: str) -> str:
         # Remove page numbers, headers, footers, and other known extraneous patterns
@@ -1084,6 +1258,7 @@ INSTRUCTIONS:
 4. In the "question" field only: use HTML <br> tags for line breaks (do NOT use \\n) and <strong>/<em> where the source shows emphasis (e.g. <em>Rattus rattus</em>). <br>, <strong> and <em> are the ONLY tags allowed — never use <b>, <i>, <span>, <u>, <sub>, <sup> or any other tag, and never put tags around a ____ blank. NEVER use <sub> or <sup> tags anywhere — the app cannot display them. Write subscripts and superscripts as Unicode characters instead, in the question and options alike: chemical formulas, isotopes, ionic charges, units with exponents, and mathematical exponents (e.g. CO₂, Na⁺, SO₄²⁻, m³, cm³, m/s², 10⁻⁸, x²); write degrees as ° (e.g. 25 °C), and fractions inline as a/b (e.g. 3/5, m/s).
 5. The "answer" field must always be plain text — never use <br> or any other HTML tag there. For "Short Answer" and "Fill in the Blank", write values the way a student would type them, without Unicode superscripts/subscripts (e.g. "m/s2", not "m/s²").
 6. Never use the × or ÷ Unicode symbols anywhere — write "x" for multiplication and "/" for division instead (e.g. "mass number x percentage", not "mass number × percentage"). These symbols are unreliable to generate correctly.
+7. If the text contains the literal marker "[table — see attached image]", that table's actual cell content is only visible in the attached image, not in this text — never invent plausible-looking option text to fill the gap. For "Multiple Choice", set "options" to just the row letters actually present (e.g. ["A", "B", "C", "D"]), with no text after each letter, and set "answer" to [] — you cannot determine the correct option without seeing the image.
 
 QUESTION TYPE — choose exactly one:
 - "Multiple Choice": a fixed set of selectable options (labelled A/B/C/D or listed items). Extract every option actually present — do not pad to or truncate at 4. Use this type even when more than one option must be selected (e.g. "Tick two boxes").
@@ -1100,8 +1275,9 @@ Within "Short Answer", format the answer to fit the sub-format:
 
 CRITICAL — for "Multiple Choice":
 - "question" contains ONLY the stem — never any option text.
-- Every option goes in "options", copied verbatim as plain text with no HTML tags (Unicode characters like CO₂ are fine).
-- Each "answer" entry must be a byte-for-byte copy of a chosen option string — the UI matches by exact string equality to highlight the correct option(s). Most questions have exactly one correct option; only include more than one entry when the question explicitly asks for multiple selections.
+- Every option goes in "options", copied verbatim as plain text with no HTML tags (Unicode characters like CO₂ are fine) — EXCEPT its leading option label (see next point).
+- Strip each option's leading position label before saving it — but only when you can confirm it really is just a label, not part of the answer. Check the whole set together: if option 1 starts with "A", option 2 with "B", option 3 with "C", and so on in strict sequence (in any of these forms: "A", "A.", "A)", "(A)"), that consistent pattern across every option is what confirms they're structural markers, not content — remove all of them (e.g. "A. T with C" → "T with C"). The same applies when the sequence is numeric instead of lettered — "1", "1.", "1)", "(1)" for option 1, "2" for option 2, and so on — strip those the same way (e.g. "1. T with C" → "T with C"). If even one option breaks the sequence (out of order, missing, or the leading letter/number is clearly part of the wording itself), leave every option in that question exactly as written — don't guess option-by-option.
+- Each "answer" entry must be a byte-for-byte copy of a chosen option string AFTER label-stripping — the UI matches by exact string equality to highlight the correct option(s). Most questions have exactly one correct option; only include more than one entry when the question explicitly asks for multiple selections.
 - Set "multi_select" to true ONLY when the question explicitly requires selecting more than one option (e.g. "Tick two boxes", "Select all that apply", "Choose two answers") — in that case "answer" must have 2+ entries. Otherwise set "multi_select" to false, and pick the single best option rather than hedging with extra "answer" entries.
 
 IMPORTANT — for "Fill in the Blank":
