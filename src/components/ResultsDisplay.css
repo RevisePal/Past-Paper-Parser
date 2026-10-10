@@ -63,12 +63,28 @@
   border-bottom: 1px solid #eee;
 }
 
-.question-type {
+.question-type-select {
   background-color: #f0f0f0;
-  padding: 0.25rem 0.5rem;
+  padding: 0.25rem 1.4rem 0.25rem 0.5rem;
   border-radius: 4px;
   font-size: 0.85rem;
   color: #555;
+  border: 1px solid transparent;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='%23777' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 0.6rem;
+}
+
+.question-type-select:hover {
+  background-color: #e6e6e6;
+}
+
+.question-type-select:focus {
+  outline: none;
+  border-color: #FFD700;
 }
 
 .encoding-warning {

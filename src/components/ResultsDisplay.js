@@ -140,6 +140,26 @@ const ResultsDisplay = ({ results, onReset }) => {
     );
   };
 
+  const handleTypeChange = (index, newType) => {
+    setQuestions((prev) =>
+      prev.map((q, i) => {
+        if (i !== index) return q;
+        if (newType !== "Multiple Choice") {
+          // Options/multiSelect are Multiple-Choice-only fields — clear them
+          // so the question card hides the options editor immediately, and
+          // so the exported JSON/saved data reflects the new type's shape
+          // rather than carrying over stale options that no longer apply.
+          return { ...q, type: newType, options: [], multiSelect: false };
+        }
+        // The options editor only renders once options.length > 0, so a
+        // question switched to Multiple Choice with none yet would have no
+        // way to add any — seed two blank ones so "Edit Options" appears.
+        const needsOptions = !q.options || q.options.length === 0;
+        return { ...q, type: newType, ...(needsOptions ? { options: ["", ""] } : {}) };
+      })
+    );
+  };
+
   const handleExtractMore = async () => {
     if (!jobId || extractingMore) return;
     setExtractingMore(true);
@@ -601,9 +621,16 @@ const ResultsDisplay = ({ results, onReset }) => {
             <div className="question-header">
               <h3>Question {question.question_number || index + 1}</h3>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span className="question-type">
-                  {question.type || "Multiple Choice"}
-                </span>
+                <select
+                  className="question-type-select"
+                  value={question.type || "Multiple Choice"}
+                  onChange={(e) => handleTypeChange(index, e.target.value)}
+                  aria-label="Question type"
+                >
+                  <option value="Multiple Choice">Multiple Choice</option>
+                  <option value="Short Answer">Short Answer</option>
+                  <option value="Fill in the Blank">Fill in the Blank</option>
+                </select>
                 {hasSuspiciousEncoding(question) && (
                   <span
                     className="encoding-warning"
@@ -814,7 +841,7 @@ const ResultsDisplay = ({ results, onReset }) => {
 )}
             </div>
 
-            {question.options && question.options.length > 0 && (
+            {question.type === "Multiple Choice" && question.options && question.options.length > 0 && (
               <div className="question-options">
                 <h4>Options:</h4>
                 {editingOptionsIndex === index ? (
