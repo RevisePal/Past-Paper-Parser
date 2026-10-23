@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import time
@@ -38,6 +39,24 @@ pdf_processor = PDFProcessor()
 PAGE_BATCH_SIZE = 10
 
 
+def _state_path(job_id: str) -> str:
+    return os.path.join(app.config["UPLOAD_FOLDER"], f"{job_id}.state.json")
+
+
+def _finish_batch(job_id: str, filepath: str, result: dict) -> None:
+    """Keep the upload and its question-numbering state for the next
+    "Extract More" batch, or clean both up once the document is done. The
+    state is internal to extraction, so it never goes to the browser."""
+    marker_state = result.pop("marker_state", None)
+    if result.get("metadata", {}).get("has_more", False):
+        with open(_state_path(job_id), "w") as f:
+            json.dump(marker_state, f)
+        return
+    for path in (filepath, _state_path(job_id)):
+        if os.path.exists(path):
+            os.remove(path)
+
+
 @app.route("/api/process-pdf", methods=["POST"])
 def process_pdf():
     try:
@@ -53,6 +72,7 @@ def process_pdf():
 
         subject_id = request.form.get("subject_id") or None
         board_id = request.form.get("board_id") or None
+        topic_id = request.form.get("topic_id") or None
 
         start_time = time.time()
 
@@ -63,7 +83,8 @@ def process_pdf():
 
         try:
             result = pdf_processor.process_pdf(
-                filepath, subject_id=subject_id, board_id=board_id, start_page=0, page_count=PAGE_BATCH_SIZE
+                filepath, subject_id=subject_id, board_id=board_id, topic_id=topic_id,
+                start_page=0, page_count=PAGE_BATCH_SIZE
             )
         except Exception:
             if os.path.exists(filepath):
@@ -79,11 +100,61 @@ def process_pdf():
             "filename": filename,
             "subject_id": subject_id,
             "board_id": board_id,
+            "topic_id": topic_id,
             "job_id": job_id if has_more else None,
         }
+        _finish_batch(job_id, filepath, result)
 
-        if not has_more and os.path.exists(filepath):
-            os.remove(filepath)
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({"error": f"Processing failed: {str(e)}"}), 500
+
+
+ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff", ".tif"}
+
+
+@app.route("/api/process-image", methods=["POST"])
+def process_image():
+    try:
+        if "file" not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+
+        file = request.files["file"]
+        if file.filename == "":
+            return jsonify({"error": "No file selected"}), 400
+
+        ext = os.path.splitext(file.filename.lower())[1]
+        if ext not in ALLOWED_IMAGE_EXTENSIONS:
+            return jsonify({"error": "File must be an image (png, jpg, jpeg, webp, bmp, tiff)"}), 400
+
+        subject_id = request.form.get("subject_id") or None
+        board_id = request.form.get("board_id") or None
+        topic_id = request.form.get("topic_id") or None
+
+        start_time = time.time()
+
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], f"{uuid.uuid4()}{ext}")
+        file.save(filepath)
+
+        try:
+            result = pdf_processor.process_image(
+                filepath, subject_id=subject_id, board_id=board_id, topic_id=topic_id
+            )
+        finally:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+
+        processing_time = round(time.time() - start_time, 2)
+        result["metadata"] = {
+            **result.get("metadata", {}),
+            "processing_time": processing_time,
+            "filename": filename,
+            "subject_id": subject_id,
+            "board_id": board_id,
+            "topic_id": topic_id,
+        }
 
         return jsonify(result)
 
@@ -99,17 +170,28 @@ def process_pdf_batch():
         start_page = data.get("start_page", 0)
         subject_id = data.get("subject_id") or None
         board_id = data.get("board_id") or None
+        topic_id = data.get("topic_id") or None
 
         if not job_id:
             return jsonify({"error": "Missing job_id"}), 400
+        try:
+            job_id = str(uuid.UUID(job_id))  # it becomes part of file paths below
+        except ValueError:
+            return jsonify({"error": "Invalid job_id"}), 400
 
         filepath = os.path.join(app.config["UPLOAD_FOLDER"], f"{job_id}.pdf")
         if not os.path.exists(filepath):
             return jsonify({"error": "No pending file found for this job_id — it may have already finished or expired"}), 404
 
+        marker_state = None
+        if os.path.exists(_state_path(job_id)):
+            with open(_state_path(job_id)) as f:
+                marker_state = json.load(f)
+
         start_time = time.time()
         result = pdf_processor.process_pdf(
-            filepath, subject_id=subject_id, board_id=board_id, start_page=start_page, page_count=PAGE_BATCH_SIZE
+            filepath, subject_id=subject_id, board_id=board_id, topic_id=topic_id,
+            start_page=start_page, page_count=PAGE_BATCH_SIZE, marker_state=marker_state,
         )
         processing_time = round(time.time() - start_time, 2)
         has_more = result.get("metadata", {}).get("has_more", False)
@@ -119,11 +201,10 @@ def process_pdf_batch():
             "processing_time": processing_time,
             "subject_id": subject_id,
             "board_id": board_id,
+            "topic_id": topic_id,
             "job_id": job_id if has_more else None,
         }
-
-        if not has_more and os.path.exists(filepath):
-            os.remove(filepath)
+        _finish_batch(job_id, filepath, result)
 
         return jsonify(result)
 
@@ -227,11 +308,28 @@ def get_subjects():
     return jsonify({"subjects": enriched})
 
 
+@app.route("/api/topics", methods=["GET"])
+def get_topics():
+    subject_id = request.args.get("subject_id") or None
+    board_id = request.args.get("board_id") or None
+
+    seen = {}
+    for b in filter_bubbles(subject_id, board_id):
+        topic = b.get("topic_id") or {}
+        tid = topic.get("_id")
+        if tid and tid not in seen:
+            seen[tid] = {"_id": tid, "name": topic.get("name", "")}
+
+    topics = sorted(seen.values(), key=lambda t: t["name"])
+    return jsonify({"topics": topics})
+
+
 @app.route("/api/bubbles", methods=["GET"])
 def get_bubbles():
     subject_id = request.args.get("subject_id") or None
     board_id = request.args.get("board_id") or None
-    return jsonify({"bubbles": filter_bubbles(subject_id, board_id)})
+    topic_id = request.args.get("topic_id") or None
+    return jsonify({"bubbles": filter_bubbles(subject_id, board_id, topic_id)})
 
 
 @app.route("/api/cleanup-images", methods=["POST"])

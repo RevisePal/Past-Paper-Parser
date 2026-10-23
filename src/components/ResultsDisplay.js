@@ -105,6 +105,7 @@ const ResultsDisplay = ({ results, onReset }) => {
     const params = new URLSearchParams();
     if (results?.metadata?.subject_id) params.set("subject_id", results.metadata.subject_id);
     if (results?.metadata?.board_id) params.set("board_id", results.metadata.board_id);
+    if (results?.metadata?.topic_id) params.set("topic_id", results.metadata.topic_id);
     fetch(`http://127.0.0.1:5001/api/bubbles?${params}`)
       .then((res) => res.json())
       .then((data) => setBubbles(data.bubbles || []))
@@ -172,6 +173,7 @@ const ResultsDisplay = ({ results, onReset }) => {
           start_page: nextStartPage,
           subject_id: results?.metadata?.subject_id || "",
           board_id: results?.metadata?.board_id || "",
+          topic_id: results?.metadata?.topic_id || "",
         }),
       });
       const data = await res.json();
@@ -217,6 +219,29 @@ const ResultsDisplay = ({ results, onReset }) => {
       return next;
     });
     setPendingDelete(null);
+  };
+
+  const handleDuplicateQuestion = (index) => {
+    const original = questions[index];
+    const duplicate = {
+      ...original,
+      // A fresh id so the copy doesn't collide with the original when saved
+      // (e.g. to Firebase, which keys documents by _id) — everything else
+      // carries over as-is, including its bubble/topic match.
+      _id: typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `dup-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      options: Array.isArray(original.options) ? [...original.options] : original.options,
+      image: Array.isArray(original.image) ? [...original.image] : original.image,
+    };
+    setQuestions((prev) => {
+      const next = [...prev];
+      next.splice(index + 1, 0, duplicate);
+      return next;
+    });
+    // Inserting shifts every later index by one — keep the edit panel (if
+    // open) pointed at the same question it was editing before the insert.
+    setEditingIndex((prev) => (prev !== null && prev > index ? prev + 1 : prev));
   };
 
   const handleRemoveImage = (questionIndex, imgIndex) => {
@@ -639,6 +664,14 @@ const ResultsDisplay = ({ results, onReset }) => {
                     ⚠ Check encoding
                   </span>
                 )}
+                <button
+                  onClick={() => handleDuplicateQuestion(index)}
+                  className="duplicate-button"
+                  aria-label="Duplicate question"
+                  title="Insert a copy of this question right after it"
+                >
+                  Duplicate
+                </button>
                 <button
                   onClick={() => handleRemoveQuestion(index)}
                   className="remove-button"

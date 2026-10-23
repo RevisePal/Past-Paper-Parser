@@ -66,15 +66,51 @@ export const htmlScriptsToUnicode = (html) => {
 const APP_TAGS = new Set(["em", "strong", "br", "p"]);
 const TAG_ALIASES = { i: "em", b: "strong" };
 
+// A question renders via InlineBlankQuestion (which applies its own
+// bold/italic styling) only when its text contains a "____" blank; otherwise
+// it goes through RenderHtml, whose default em/strong styling is disabled
+// (enableUserAgentStyles: false) with no override in QuestionScreen.js, so
+// the tags would show up as plain text there.
+const BLANK_RE = /_{2,}/;
+
+const buildLetterMap = (upperBase, lowerBase, exceptions = {}) => {
+  const map = {};
+  for (let i = 0; i < 26; i++) {
+    const upper = String.fromCharCode(65 + i);
+    const lower = String.fromCharCode(97 + i);
+    map[upper] = String.fromCodePoint(upperBase + i);
+    map[lower] = exceptions[lower] || String.fromCodePoint(lowerBase + i);
+  }
+  return map;
+};
+
+// Mathematical Italic (a-z has a hole at "h"; U+210E, the Planck constant
+// sign, is its canonical substitute) and Mathematical Bold (no holes).
+const ITALIC_MAP = buildLetterMap(0x1d434, 0x1d44e, { h: "ℎ" });
+const BOLD_MAP = buildLetterMap(0x1d400, 0x1d41a);
+
+const toUnicodeStyle = (text, map) =>
+  Array.from(text, (ch) => map[ch] ?? ch).join("");
+
 // Question text: Unicode super/subscripts, <i>/<b> renamed to <em>/<strong>,
 // and any other tag (e.g. <span style=...>) unwrapped, keeping its content.
-export const toAppQuestionHtml = (html) =>
-  htmlScriptsToUnicode(html).replace(/<(\/?)([a-z][a-z0-9]*)\b[^>]*>/gi, (_, closing, name) => {
+// For blank-less questions, <em>/<strong> spans are additionally baked into
+// literal Unicode italic/bold characters, which render correctly regardless
+// of which renderer the app uses.
+export const toAppQuestionHtml = (html) => {
+  let converted = htmlScriptsToUnicode(html);
+  if (!BLANK_RE.test(converted)) {
+    converted = converted
+      .replace(/<(?:em|i)>([\s\S]*?)<\/(?:em|i)>/gi, (_, inner) => toUnicodeStyle(inner, ITALIC_MAP))
+      .replace(/<(?:strong|b)>([\s\S]*?)<\/(?:strong|b)>/gi, (_, inner) => toUnicodeStyle(inner, BOLD_MAP));
+  }
+  return converted.replace(/<(\/?)([a-z][a-z0-9]*)\b[^>]*>/gi, (_, closing, name) => {
     const lower = name.toLowerCase();
     const tag = TAG_ALIASES[lower] || lower;
     if (!APP_TAGS.has(tag)) return "";
     return tag === "br" ? "<br>" : `<${closing}${tag}>`;
   });
+};
 
 // Options and answers are shown as plain <Text> in the app, so any tag or
 // entity would appear literally: strip tags and decode entities.

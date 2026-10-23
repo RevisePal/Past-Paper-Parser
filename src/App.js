@@ -16,8 +16,10 @@ function App() {
   const [error, setError] = useState(null);
   const [examboards, setExamboards] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [topics, setTopics] = useState([]);
   const [selectedBoard, setSelectedBoard] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
+  const [selectedTopic, setSelectedTopic] = useState("");
 
   useEffect(() => {
     if (results) {
@@ -35,6 +37,21 @@ function App() {
       .then((data) => setSubjects(data.subjects || []))
       .catch((err) => console.error("Failed to load subjects:", err));
   }, []);
+
+  // Topic is optional and only meant to narrow an already-chosen subject —
+  // without one there's no useful way to scope the topic list, so leave it
+  // empty rather than fetching every topic across every subject.
+  useEffect(() => {
+    if (!selectedBoard || !selectedSubject) {
+      setTopics([]);
+      return;
+    }
+    const params = new URLSearchParams({ board_id: selectedBoard, subject_id: selectedSubject });
+    fetch(`http://127.0.0.1:5001/api/topics?${params}`)
+      .then((res) => res.json())
+      .then((data) => setTopics(data.topics || []))
+      .catch((err) => console.error("Failed to load topics:", err));
+  }, [selectedBoard, selectedSubject]);
 
   const subjectsForBoard = subjects.filter(
     (s) => !selectedBoard || (s.available_board_ids || []).includes(selectedBoard)
@@ -80,6 +97,7 @@ function App() {
                   onChange={(e) => {
                     setSelectedBoard(e.target.value);
                     setSelectedSubject("");
+                    setSelectedTopic("");
                   }}
                 >
                   <option value="">Select exam board...</option>
@@ -95,13 +113,32 @@ function App() {
                 <select
                   id="subject-select"
                   value={selectedSubject}
-                  onChange={(e) => setSelectedSubject(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedSubject(e.target.value);
+                    setSelectedTopic("");
+                  }}
                   disabled={!selectedBoard}
                 >
                   <option value="">Select subject...</option>
                   {subjectsForBoard.map((s) => (
                     <option key={s._id} value={s._id}>
                       {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="taxonomy-field">
+                <label htmlFor="topic-select">Topic (optional):</label>
+                <select
+                  id="topic-select"
+                  value={selectedTopic}
+                  onChange={(e) => setSelectedTopic(e.target.value)}
+                  disabled={!selectedSubject}
+                >
+                  <option value="">Any topic</option>
+                  {topics.map((t) => (
+                    <option key={t._id} value={t._id}>
+                      {t.name}
                     </option>
                   ))}
                 </select>
@@ -113,6 +150,7 @@ function App() {
               onLoadingChange={setLoading}
               subjectId={selectedSubject}
               boardId={selectedBoard}
+              topicId={selectedTopic}
               disabled={!selectedBoard || !selectedSubject}
             />
           </div>

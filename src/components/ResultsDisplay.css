@@ -304,6 +304,16 @@
   margin-left: 1rem;
 }
 
+.duplicate-button {
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
 .options-editor {
   display: flex;
   flex-direction: column;
