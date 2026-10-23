@@ -5,10 +5,13 @@ from pydantic import BaseModel, ValidationError, Field
 import json
 import os
 import time
+import io
 import logging
 import concurrent.futures
 from openai import OpenAI, RateLimitError
 import uuid
+import pytesseract
+from PIL import Image
 
 logging.basicConfig(
     level=logging.DEBUG,  # <- this is the fix
@@ -47,25 +50,33 @@ ALL_SUBJECTS = _load_json_list("subjects.json", "subjects")
 ALL_BUBBLES = _load_json_list("bubbles.json", "bubbles")
 
 
-def filter_bubbles(subject_id: Optional[str] = None, board_id: Optional[str] = None) -> List[dict]:
-    """Narrow the full bubble list to the chosen subject/exam board, via each
-    bubble's embedded topic_id.subject_id / topic_id.board_id."""
+def filter_bubbles(
+    subject_id: Optional[str] = None, board_id: Optional[str] = None, topic_id: Optional[str] = None
+) -> List[dict]:
+    """Narrow the full bubble list to the chosen subject/exam board/topic, via
+    each bubble's embedded topic_id.subject_id / topic_id.board_id / topic_id._id.
+    `topic_id` is optional on top of subject/board — picking a topic is meant
+    to further narrow an already-large bubble list, not be required on its own."""
     def matches(b: dict) -> bool:
         topic = b.get("topic_id") or {}
         if subject_id and topic.get("subject_id") != subject_id:
             return False
         if board_id and topic.get("board_id") != board_id:
             return False
+        if topic_id and topic.get("_id") != topic_id:
+            return False
         return True
 
     return [b for b in ALL_BUBBLES if matches(b)]
 
 
-def build_bubble_lookup(subject_id: Optional[str] = None, board_id: Optional[str] = None) -> Dict[str, dict]:
+def build_bubble_lookup(
+    subject_id: Optional[str] = None, board_id: Optional[str] = None, topic_id: Optional[str] = None
+) -> Dict[str, dict]:
     """Build {'<name> :: <topic name>': full bubble object} for the AI to pick from."""
     return {
         f"{b['name']} :: {b.get('topic_id', {}).get('name', '')}": b
-        for b in filter_bubbles(subject_id, board_id)
+        for b in filter_bubbles(subject_id, board_id, topic_id)
         if b.get("name")
     }
 
@@ -92,41 +103,29 @@ class PDFProcessor:
 
     def process_pdf(
         self, filepath: str, subject_id: Optional[str] = None, board_id: Optional[str] = None,
-        start_page: int = 0, page_count: int = 10,
+        topic_id: Optional[str] = None, start_page: int = 0, page_count: int = 10,
+        marker_state: Optional[list] = None,
     ) -> Dict:
+        """`marker_state` is the previous batch's returned "marker_state"
+        when this call continues the same document ("Extract More"), so
+        question numbering carries on from where it stopped."""
         logger.info(
             f"Starting PDF processing for: {filepath} (subject={subject_id}, board={board_id}, "
-            f"pages {start_page}-{start_page + page_count - 1})"
+            f"topic={topic_id}, pages {start_page}-{start_page + page_count - 1})"
         )
         try:
-            logger.info("Step 1: Extracting text from PDF...")
-            end_page = start_page + page_count
-            raw_text, total_pages, page_image_map, page_question_y = self._extract_text(filepath, start_page, end_page)
-            actual_end_page = min(end_page, total_pages)
-            logger.info(
-                f"✓ Text extracted successfully. Pages: {total_pages}, Characters: {len(raw_text)}"
-            )
+            batch = self._extract_batch(filepath, start_page, page_count, marker_state)
+            question_chunks = batch["chunks"]
+            total_pages = batch["total_pages"]
+            actual_end_page = batch["end_page"]
+            page_image_map = batch["page_image_map"]
+            page_question_y = batch["page_question_y"]
+            marker_state = batch["marker_state"]
 
-            logger.info("Step 2: Cleaning extracted text...")
-            cleaned_text = self._clean_text(raw_text)
-            logger.info(
-                f"✓ Text cleaned. Characters after cleaning: {len(cleaned_text)}"
-            )
-
-            logger.info("Step 3: Segmenting into question chunks...")
-            question_chunks, restart_page = self._segment_questions(cleaned_text)
-            logger.info(f"✓ Found {len(question_chunks)} question chunks")
-            if restart_page is not None:
-                # The paper restarts its question numbering partway through
-                # this batch (e.g. a new difficulty section starting back at
-                # "1") — stop reporting progress at the page where that
-                # happens rather than claiming the untouched remainder was
-                # processed, so the next "Extract More" batch starts there
-                # and sees a fresh "1" exactly like the start of any paper.
-                actual_end_page = restart_page
-                logger.info(f"Numbering restart detected at page {restart_page}; capping batch there")
-
-            bubble_lookup = build_bubble_lookup(subject_id, board_id)
+            bubble_lookup = build_bubble_lookup(subject_id, board_id, topic_id)
+            if not bubble_lookup and topic_id:
+                logger.warning("No bubbles matched the chosen topic; falling back to subject/board only.")
+                bubble_lookup = build_bubble_lookup(subject_id, board_id)
             if not bubble_lookup and (subject_id or board_id):
                 logger.warning("No bubbles matched the chosen subject/board; falling back to the full bubble list.")
                 bubble_lookup = build_bubble_lookup()
@@ -148,6 +147,7 @@ class PDFProcessor:
                     "end_page": actual_end_page,
                     "has_more": actual_end_page < total_pages,
                 },
+                "marker_state": marker_state,
             }
 
             logger.info("✅ PDF processing completed successfully!")
@@ -157,7 +157,344 @@ class PDFProcessor:
             logger.error(f"❌ PDF processing failed: {str(e)}")
             raise Exception(f"PDF processing failed: {str(e)}")
 
-    def _extract_text(self, filepath: str, start_page: int = 0, end_page: Optional[int] = None) -> tuple:
+    def _extract_batch(
+        self, filepath: str, start_page: int, page_count: int, marker_state: Optional[list] = None,
+    ) -> Dict:
+        """Extract, clean and segment one batch of pages — everything up to
+        the AI step, shared by process_pdf and the segmentation test suite.
+
+        The batch can end earlier than start_page + page_count, and the next
+        "Extract More" batch resumes from the returned "end_page":
+        - at a numbering restart (a new "Medium questions" section back at
+          "1"), so the next batch starts that section fresh;
+        - otherwise, at the page where this batch's last question starts,
+          since that question may run on into pages this batch didn't read —
+          the next batch extracts it whole instead of picking up its second
+          half as a stray fragment (see _defer_unfinished_question)."""
+        logger.info("Step 1: Extracting text from PDF...")
+        # Where the numbering stood before this batch (extraction updates
+        # marker_state in place as it reads).
+        last_num_before = marker_state[1] if marker_state else None
+        padded_before = bool(marker_state[3]) if marker_state and len(marker_state) > 3 else False
+        raw_text, total_pages, page_image_map, page_question_y, marker_state = self._extract_text(
+            filepath, start_page, start_page + page_count, path_state=marker_state
+        )
+        end_page = min(start_page + page_count, total_pages)
+        logger.info(f"✓ Text extracted successfully. Pages: {total_pages}, Characters: {len(raw_text)}")
+
+        logger.info("Step 2: Cleaning extracted text...")
+        cleaned_text = self._clean_text(raw_text)
+
+        logger.info("Step 3: Segmenting into question chunks...")
+        chunks, restart_page, padded = self._segment_questions(
+            cleaned_text, last_num=last_num_before, padded=padded_before
+        )
+        if len(marker_state) < 4:
+            marker_state.append(False)
+        marker_state[3] = padded
+        logger.info(f"✓ Found {len(chunks)} question chunks")
+        if not chunks and len(re.findall(r"[A-Za-z]{3,}", cleaned_text)) >= self._AI_SEGMENT_MIN_WORDS:
+            logger.warning("Numbering rules found no questions in a text-heavy batch; asking the AI for question boundaries")
+            chunks = self._ai_segment(cleaned_text)
+        if restart_page is not None:
+            end_page = restart_page
+            # The next batch starts a fresh section at "1" — keep only where
+            # question numbers sit on the page, not the count.
+            marker_state = [[], None] + marker_state[2:]
+            logger.info(f"Numbering restart detected at page {restart_page}; capping batch there")
+        elif end_page < total_pages:
+            chunks, end_page, marker_state = self._defer_unfinished_question(
+                chunks, start_page, end_page, marker_state
+            )
+
+        return {
+            "chunks": chunks,
+            "total_pages": total_pages,
+            "end_page": end_page,
+            "page_image_map": page_image_map,
+            "page_question_y": page_question_y,
+            "marker_state": marker_state,
+        }
+
+    def _defer_unfinished_question(
+        self, chunks: List[Dict], start_page: int, end_page: int, marker_state: list,
+    ) -> Tuple[List[Dict], int, list]:
+        """Drop this batch's last top-level question (all its parts) and end
+        the batch at the page it starts on, so the next batch reads it in
+        full. A no-op when that question starts on the batch's first page —
+        a single question longer than a whole batch has nowhere better to
+        split."""
+        if not chunks:
+            return chunks, end_page, marker_state
+
+        def top(chunk):
+            return chunk["question_number"].split(".")[0]
+
+        last = top(chunks[-1])
+        last_start = min((c.get("page_nums") or [c["page_num"]])[0] for c in chunks if top(c) == last)
+        if last_start <= start_page:
+            return chunks, end_page, marker_state
+
+        kept = [c for c in chunks if top(c) != last]
+        # The next batch must accept `last` again as the next number in sequence.
+        marker_state = [[], int(last) - 1 if last.isdigit() else None] + marker_state[2:]
+        logger.info(f"Deferring question {last} (starts on page {last_start}) to the next batch")
+        return kept, last_start, marker_state
+
+    # Real words a batch must hold before finding no questions at all counts
+    # as the numbering rules failing (rather than a cover page or blank pages).
+    _AI_SEGMENT_MIN_WORDS = 150
+
+    def _ai_segment(self, text: str) -> List[Dict]:
+        """Fallback for a layout the numbering rules don't understand: ask the
+        AI where each question and sub-question starts, then chunk the text
+        at those lines exactly as _segment_bare_numbered_questions would
+        (a stem's text shared with every part beneath it). Only used when
+        the rules found nothing in a batch with plenty of text; any failure
+        just leaves the batch with no questions, as before."""
+        # Put back the "(c)"/"(i)" labels that extraction swapped for sentinels.
+        text = re.sub(r"<<<(?:SUBLETTER|SUBROMAN)_([a-z]+)>>>", r"(\1) ", text)
+        lines = re.sub(r"<<<QSTART_[\w-]+>>>", "", text).split("\n")
+        line_page: Dict[int, int] = {}
+        numbered = []
+        page = 0
+        for i, line in enumerate(lines):
+            m = re.fullmatch(r"\s*<<<PAGE_(\d+)>>>\s*", line)
+            if m:
+                page = int(m.group(1))
+            elif line.strip():
+                line_page[i] = page
+                numbered.append(f"{i}: {line}")
+
+        prompt = (
+            "Below is text extracted from exam paper pages, one line per row, each prefixed "
+            "with its line number.\n\n"
+            "List every line where a new question or sub-question starts: a question number "
+            "(e.g. \"1\", \"12\", \"01\"), a lettered part (\"(a)\") or a roman part (\"(i)\"), "
+            "including one that shares a line with others (\"1 (c) (i) Name...\" is a single "
+            "start). Ignore numbers that are content: numbered statements or steps inside a "
+            "question, table or graph values, page numbers, mark allocations, answer options.\n\n"
+            "Return JSON {\"starts\": [{\"line\": <line number>, \"label\": \"<path>\"}]} where "
+            "path is the full dotted position: \"3\" for a question with no parts, \"1.c.i\" for "
+            "question 1 part (c)(i), \"02.3\" for zero-padded numbering. Use the paper's own "
+            "numbers; list starts in order.\n\n" + "\n".join(numbered)
+        )
+        try:
+            response = self._call_openai_with_retry(
+                model="gpt-4o",
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"},
+                temperature=0,
+            )
+            starts = json.loads(response.choices[0].message.content).get("starts", [])
+        except Exception as e:
+            logger.warning(f"AI segmentation fallback failed: {e}")
+            return []
+
+        valid = []
+        for s in starts:
+            line, label = s.get("line"), str(s.get("label", "")).strip().lower()
+            if isinstance(line, int) and line in line_page and re.fullmatch(r"\d{1,2}(?:\.[a-z0-9]{1,4}){0,2}", label):
+                valid.append((line, label))
+        valid.sort()
+        if not valid:
+            return []
+
+        items = []
+        for idx, (line, label) in enumerate(valid):
+            end = valid[idx + 1][0] if idx + 1 < len(valid) else len(lines)
+            body = "\n".join(l for l in lines[line:end] if not re.fullmatch(r"\s*<<<PAGE_\d+>>>\s*", l))
+            items.append({"path": tuple(label.split(".")), "text": body.strip(), "page_num": line_page[line]})
+
+        chunks = []
+        for leaf in items:
+            if any(len(o["path"]) > len(leaf["path"]) and o["path"][: len(leaf["path"])] == leaf["path"] for o in items):
+                continue
+            ancestors = [it for it in items if it["path"] == leaf["path"][: len(it["path"])]]
+            ancestors.sort(key=lambda it: len(it["path"]))
+            pages = []
+            for it in ancestors:
+                if it["page_num"] not in pages:
+                    pages.append(it["page_num"])
+            chunks.append({
+                "question_number": ".".join(leaf["path"]),
+                "text": " ".join(it["text"] for it in ancestors if it["text"]),
+                "page_num": leaf["page_num"],
+                "page_nums": pages,
+            })
+        logger.info(f"AI segmentation fallback found {len(chunks)} question chunks")
+        return chunks
+
+    def process_image(
+        self, filepath: str, subject_id: Optional[str] = None, board_id: Optional[str] = None,
+        topic_id: Optional[str] = None,
+    ) -> Dict:
+        """Extract a single question from a standalone image (e.g. a
+        screenshot), via OCR straight to the AI structuring step. Unlike
+        process_pdf, there's no multi-page structure to segment — the whole
+        image is treated as exactly one question, and no image region is
+        auto-attached (a flat screenshot has none of the vector/text-block
+        structure _collect_region_rects relies on to find one). If the
+        screenshot itself needs to be attached — it has a diagram, say — the
+        existing per-question image upload in the results view covers that."""
+        logger.info(
+            f"Starting image processing for: {filepath} (subject={subject_id}, board={board_id}, topic={topic_id})"
+        )
+        try:
+            logger.info("Step 1: Running OCR on image...")
+            image = Image.open(filepath)
+            raw_text = pytesseract.image_to_string(image)
+            logger.info(f"✓ OCR extracted {len(raw_text)} characters")
+
+            logger.info("Step 2: Cleaning extracted text...")
+            cleaned_text = self._clean_text(raw_text)
+            logger.info(f"✓ Text cleaned. Characters after cleaning: {len(cleaned_text)}")
+
+            if not cleaned_text.strip():
+                logger.warning("No text detected in image")
+                return {
+                    "questions": [],
+                    "metadata": {"total_pages": 1, "total_questions": 0, "end_page": 1, "has_more": False},
+                }
+
+            question_chunks = [{"text": cleaned_text, "page_num": 0, "page_nums": [0]}]
+
+            bubble_lookup = build_bubble_lookup(subject_id, board_id, topic_id)
+            if not bubble_lookup and topic_id:
+                logger.warning("No bubbles matched the chosen topic; falling back to subject/board only.")
+                bubble_lookup = build_bubble_lookup(subject_id, board_id)
+            if not bubble_lookup and (subject_id or board_id):
+                logger.warning("No bubbles matched the chosen subject/board; falling back to the full bubble list.")
+                bubble_lookup = build_bubble_lookup()
+
+            logger.info("Step 3: Processing question with AI...")
+            questions = self._structure_with_ai(question_chunks, {}, {}, bubble_lookup)
+            logger.info(f"✓ Processed {len(questions)} questions")
+
+            logger.info("Step 4: Validating question data...")
+            validated_questions = self._validate_questions(questions)
+            logger.info(f"✓ Validated {len(validated_questions)} questions")
+
+            result = {
+                "questions": validated_questions,
+                "metadata": {
+                    "total_pages": 1,
+                    "total_questions": len(validated_questions),
+                    "start_page": 0,
+                    "end_page": 1,
+                    "has_more": False,
+                },
+            }
+
+            logger.info("✅ Image processing completed successfully!")
+            return result
+
+        except Exception as e:
+            logger.error(f"❌ Image processing failed: {str(e)}")
+            raise Exception(f"Image processing failed: {str(e)}")
+
+    # An embedded image is worth OCRing when it's big enough to hold
+    # question text: at least this fraction of the page's width and height.
+    OCR_MIN_IMAGE_WIDTH = 0.3
+    OCR_MIN_IMAGE_HEIGHT = 0.05
+    # ...and its OCR output is kept only if it reads like text — this many
+    # real words (3+ letters). A photo yields next to none; even a single
+    # question sub-part ("(i) Describe how the length of the sperm changes")
+    # clears it.
+    OCR_MIN_WORDS = 8
+    OCR_MIN_CONFIDENCE = 50
+
+    def _ocr_image_rows(self, page, page_num: int) -> List[dict]:
+        """OCR every large image on the page that has no text layer of its
+        own, as rows in page coordinates (same shape as _page_rows, plus
+        "ocr": True) so they slot in among the page's real text by position.
+
+        This covers a fully scanned page (one big image, no text), a
+        compilation of question screenshots where only the question number
+        or a source code is real text beside each image, and an ordinary
+        page with one pasted-in screenshot — without deciding up front which
+        kind of page this is. An image that already has real text over it
+        (a searchable scan) is skipped, since that text is read directly."""
+        rows: List[dict] = []
+        width, height = page.rect.width, page.rect.height
+        seen: List[fitz.Rect] = []
+        for info in page.get_image_info():
+            rect = fitz.Rect(info.get("bbox") or (0, 0, 0, 0)) & page.rect
+            if rect.is_empty or rect.width < width * self.OCR_MIN_IMAGE_WIDTH or rect.height < height * self.OCR_MIN_IMAGE_HEIGHT:
+                continue
+            if any((rect & s).get_area() > 0.9 * rect.get_area() for s in seen):
+                continue  # the same image placed twice
+            seen.append(rect)
+            if len(page.get_text("words", clip=rect)) > 5:
+                continue
+
+            try:
+                # ~288 DPI — comfortably in Tesseract's recommended range.
+                zoom = 4
+                pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), clip=rect)
+                img = Image.open(io.BytesIO(pix.tobytes("png")))
+                # Tesseract's default layout analysis sometimes skips lines of a
+                # mostly-blank question (answer space, dotted lines); reading
+                # the image as one uniform block catches those but can garble
+                # other layouts. Neither is better everywhere, so take the one
+                # that reads more words and add any line only the other read.
+                candidates = sorted(
+                    [self._ocr_lines(img, rect, zoom, "--psm 3"), self._ocr_lines(img, rect, zoom, "--psm 6")],
+                    key=lambda c: c[1],
+                    reverse=True,
+                )
+            except Exception as e:
+                logger.warning(f"Page {page_num}: OCR failed for an image, skipping it: {e}")
+                continue
+
+            image_rows, words = candidates[0]
+            for extra in candidates[1][0]:
+                if not any(
+                    min(extra["bbox"].y1, r["bbox"].y1) - max(extra["bbox"].y0, r["bbox"].y0) > 0
+                    for r in image_rows
+                ):
+                    image_rows.append(extra)
+                    words += len(re.findall(r"[A-Za-z]{3,}", extra["text"]))
+            if words >= self.OCR_MIN_WORDS:
+                rows.extend(image_rows)
+                logger.info(f"Page {page_num}: OCR'd {len(image_rows)} lines from an image with no text layer")
+        return rows
+
+    def _ocr_lines(self, img, rect: fitz.Rect, zoom: float, config: str) -> Tuple[List[dict], int]:
+        """OCR `img` (a render of page area `rect` at `zoom`) into rows in
+        page coordinates, plus how many real words (3+ letters) it read."""
+        data = pytesseract.image_to_data(img, config=config, output_type=pytesseract.Output.DICT)
+        lines: Dict[Tuple[int, int, int], Dict] = {}
+        for i, word in enumerate(data["text"]):
+            word = word.strip()
+            # Real text reads at ~90+ confidence; under 50 is almost always
+            # Tesseract reading shapes as letters (a graph's grid, a photo).
+            # A sub-part label like "(c)" is short and often scores low even
+            # when read correctly — keep it regardless.
+            if not word or (
+                float(data["conf"][i]) < self.OCR_MIN_CONFIDENCE
+                and not re.fullmatch(r"\((?:[a-h]|[ivx]{1,4})\)", word)
+            ):
+                continue
+            key = (data["block_num"][i], data["par_num"][i], data["line_num"][i])
+            x0 = rect.x0 + data["left"][i] / zoom
+            y0 = rect.y0 + data["top"][i] / zoom
+            box = fitz.Rect(x0, y0, x0 + data["width"][i] / zoom, y0 + data["height"][i] / zoom)
+            entry = lines.setdefault(key, {"words": [], "bbox": fitz.Rect(box)})
+            entry["words"].append(word)
+            entry["bbox"] |= box
+        rows = [
+            {"text": " ".join(e["words"]), "x0": e["bbox"].x0, "y0": e["bbox"].y0,
+             "bbox": e["bbox"], "bold": False, "ocr": True}
+            for e in lines.values()
+        ]
+        words = sum(len(re.findall(r"[A-Za-z]{3,}", r["text"])) for r in rows)
+        return rows, words
+
+    def _extract_text(
+        self, filepath: str, start_page: int = 0, end_page: Optional[int] = None,
+        path_state: Optional[list] = None,
+    ) -> tuple:
         logger.info(f"Opening PDF file: {filepath}")
         doc = fitz.open(filepath)
         total_pages = len(doc)
@@ -168,18 +505,38 @@ class PDFProcessor:
         page_image_map = {}   # {page_num: [(fitz.Rect, path), ...]}
         page_question_y = {}  # {page_num: {qnum_str: y0}}
 
-        # Tracks the current dotted path (e.g. ["1", "c"]) for the bare-number
-        # format across pages in document order, so a sub-part marker on a
-        # later page (e.g. "(i)") can resolve its full path ("1.c.i") even
-        # though its top-level number was set on an earlier page.
-        bare_path_state = [[]]
+        # Tracks state for the bare-number format across pages in document
+        # order: [0] the current dotted path (e.g. ["1", "c"]), so a sub-part
+        # marker on a later page (e.g. "(i)") can resolve its full path
+        # ("1.c.i") even though its top-level number was set on an earlier
+        # page; [1] the last confirmed top-level number, used to trust a
+        # non-bold question number that exactly continues the sequence (see
+        # _maybe_sequential_qstart) when a document bolds its question
+        # numbers inconsistently; [2] the x-position of this document's
+        # first bold-confirmed marker, used by that same fallback to tell a
+        # real marker's column from same-shaped inline furniture elsewhere
+        # on the page (see _match_top_level_marker/_MARKER_X0_TOLERANCE);
+        # [3] whether this document numbers questions zero-padded ("01.1"),
+        # which a later batch may have no "0X" number of its own to show
+        # (see _normalize_padded_numbers).
+        # Passed in from the previous batch when this is an "Extract More"
+        # continuation, so numbering picks up where it left off; returned
+        # (mutated) so the caller can hand it to the next batch.
+        bare_path_state = path_state if path_state is not None else [[], None, None, False]
 
         for page_num in range(start_page, end_page):
             page = doc[page_num]
-            page_text, bare_q_y = self._build_page_text_with_markers(page, bare_path_state)
+            # Computed once per page and reused below: _build_page_text_with_markers
+            # needs it to tell a real bare question number from a graph's own
+            # axis tick (see _maybe_sequential_qstart), and _extract_page_images
+            # would otherwise just recompute the identical regions itself.
+            region_rects = self._collect_region_rects(page, page_num)
+            page_text, bare_q_y = self._build_page_text_with_markers(
+                page, page_num, bare_path_state, region_rects
+            )
             full_text += f"\n<<<PAGE_{page_num}>>>\n" + page_text
 
-            images = self._extract_page_images(doc, page, page_num)
+            images = self._extract_page_images(doc, page, page_num, region_rects)
             if images:
                 page_image_map[page_num] = images
                 logger.debug(f"Page {page_num}: extracted {len(images)} image(s)")
@@ -201,101 +558,130 @@ class PDFProcessor:
         doc.close()
         logger.debug("PDF document closed")
 
-        return full_text, total_pages, page_image_map, page_question_y
+        return full_text, total_pages, page_image_map, page_question_y, bare_path_state
 
-    # Matches a bold, unpadded question number ("1", "2", "10") opening a
-    # line — either alone on its own line, or immediately followed by the
-    # question's own text on the same line (layout varies between papers,
-    # even within the same document), or a bold "(a)"/"(i)" sub-part label
-    # opening a line within a block.
-    _BARE_QNUM_RE = re.compile(r"^([1-9]\d?)(?=[ \t]|$)")
+    # A question number ("1", "2", "10") opening a row — alone, or followed
+    # by the question's own text or a sub-part label on the same row — and
+    # the "(a)"/"(i)" sub-part labels that can open a row or follow it.
+    # Not when the next thing on the row is a lone digit: "1 0" is a two-digit
+    # number printed one digit per box (see _normalize_padded_numbers).
+    _BARE_QNUM_RE = re.compile(r"^([1-9]\d?)(?=[ \t]|$)(?![ \t]+\d(?:[ \t.]|$))")
     _SUBLETTER_RE = re.compile(r"^\(([a-h])\)")
     _SUBROMAN_RE = re.compile(r"^\(([ivx]{1,4})\)", re.IGNORECASE)
 
-    def _sort_blocks_reading_order(self, blocks: list) -> list:
-        """Reorder text blocks into visual reading order (top-to-bottom, then
-        left-to-right within a row), instead of trusting the PDF's content
-        stream order.
+    # Two lines belong to the same visual row when their vertical extents
+    # overlap by more than this fraction of the shorter one — loose enough
+    # to keep a subscript/superscript (drawn as its own, offset line) on its
+    # base row, tight enough that consecutive lines of a paragraph never merge.
+    _ROW_OVERLAP = 0.5
+    # A gap between two characters wider than this fraction of the font size
+    # is a word break. Characters within a word, and a subscript tucked
+    # against the letter before it, sit ~0pt apart; a word space is ~0.25em.
+    _WORD_GAP = 0.15
+    # A gap wider than this fraction of the page width splits a row in two.
+    _ROW_SPLIT_GAP = 0.2
+    # Real (non-OCR) words below the header that mark a page as text-based —
+    # every text-based fixture page with real questions has more than this,
+    # every scan or screenshot-compilation page well under (its only real
+    # text is a "Paper 3" banner and the question numbers).
+    _NATIVE_TEXT_PAGE_WORDS = 30
 
-        Some PDFs — typically ones rendered from HTML/CSS by a browser engine
-        rather than traditionally typeset — emit text in DOM/paint order,
-        which doesn't always match layout order. A common case: a question's
-        number badge and its options' A/B/C/D letters sit in a narrow left
-        gutter, each its own block, positioned at the same height as (but
-        extracted well before or after) the stem/option text in the main
-        column to their right. Taking blocks in stream order then glues a
-        batch of bare gutter labels onto the wrong content entirely. Two
-        blocks are grouped into the same "row" when their vertical extents
-        overlap; rows are then ordered top-to-bottom and, within a row,
-        blocks left-to-right. A normal single-column document's blocks don't
-        vertically overlap each other, so every row is a singleton and this
-        reproduces the original top-to-bottom order unchanged.
-        """
-        n = len(blocks)
-        if n <= 1:
-            return list(blocks)
+    def _page_rows(self, page) -> List[dict]:
+        """The page's text as visual rows, top to bottom, each built from its
+        individual characters ordered left to right.
 
-        parent = list(range(n))
+        Built straight from PyMuPDF's character data rather than its
+        block/line text, because how a PDF stores text often doesn't match
+        how it looks: a question number drawn after the stem it sits to the
+        left of, a subscript ("the 4 in CH4") stored as a separate line from
+        its formula, or one visual line split across several blocks. Grouping
+        by position puts each of those back where a reader sees it, and every
+        row carries its own first-character font and position, so marker
+        detection never has to match text from one source against font
+        information from another.
 
-        def find(i: int) -> int:
-            while parent[i] != i:
-                parent[i] = parent[parent[i]]
-                i = parent[i]
-            return i
+        Each row: {"text", "x0", "y0", "bbox", "bold"} — bold/x0 describe the
+        row's first character, i.e. the would-be question number."""
+        lines = []
+        for block in page.get_text("rawdict")["blocks"]:
+            for line in block.get("lines", []):
+                if abs(line["dir"][1]) > 0.1:
+                    continue  # rotated margin text ("Do not write outside the box")
+                chars = []
+                for span in line["spans"]:
+                    for ch in span["chars"]:
+                        if ch["c"].strip():
+                            chars.append((fitz.Rect(ch["bbox"]), ch["c"], span["font"], span["size"]))
+                if chars:
+                    lines.append({"bbox": fitz.Rect(line["bbox"]), "chars": chars})
+        lines.sort(key=lambda l: (l["bbox"].y0, l["bbox"].x0))
 
-        order = sorted(range(n), key=lambda i: blocks[i][1])
-        for a in range(n):
-            i = order[a]
-            y1_i = blocks[i][3]
-            for b in range(a + 1, n):
-                j = order[b]
-                if blocks[j][1] >= y1_i:
-                    break  # sorted by y0 — no later block can overlap i either
-                pi, pj = find(i), find(j)
-                if pi != pj:
-                    parent[pi] = pj
+        groups: List[dict] = []
+        for line in lines:
+            b = line["bbox"]
+            for group in reversed(groups[-4:]):
+                ref = group["first"]
+                overlap = min(b.y1, group["bbox"].y1) - max(b.y0, group["bbox"].y0)
+                if overlap > self._ROW_OVERLAP * min(b.height, ref.height):
+                    group["chars"].extend(line["chars"])
+                    group["bbox"] |= b
+                    break
+            else:
+                groups.append({"chars": list(line["chars"]), "bbox": fitz.Rect(b), "first": fitz.Rect(b)})
 
-        rows: Dict[int, List[int]] = {}
-        for i in range(n):
-            rows.setdefault(find(i), []).append(i)
+        rows = []
+        for group in groups:
+            chars = sorted(group["chars"], key=lambda c: (c[0].x0, c[0].y0))
+            # Text at the same height but far apart (a margin note like "Do
+            # not write outside the box", a second column) is a separate row.
+            segments = [[chars[0]]]
+            for ch in chars[1:]:
+                if ch[0].x0 - segments[-1][-1][0].x1 > page.rect.width * self._ROW_SPLIT_GAP:
+                    segments.append([ch])
+                else:
+                    segments[-1].append(ch)
+            for seg in segments:
+                parts = []
+                prev = None
+                for rect, c, font, size in seg:
+                    if prev is not None and rect.x0 - prev[0].x1 > self._WORD_GAP * max(size, prev[3]):
+                        parts.append(" ")
+                    parts.append(c)
+                    prev = (rect, c, font, size)
+                bbox = fitz.Rect(seg[0][0])
+                for ch in seg[1:]:
+                    bbox |= ch[0]
+                rows.append({
+                    "text": "".join(parts),
+                    "x0": seg[0][0].x0,
+                    "y0": bbox.y0,
+                    "bbox": bbox,
+                    "bold": "bold" in seg[0][2].lower(),
+                })
+        rows.sort(key=lambda r: (r["y0"], r["x0"]))
+        return rows
 
-        row_list = [
-            (min(blocks[i][1] for i in members), sorted(members, key=lambda i: blocks[i][0]))
-            for members in rows.values()
-        ]
-        row_list.sort(key=lambda r: r[0])
+    def _build_page_text_with_markers(
+        self, page, page_num: int, path_state: list, region_rects: Optional[List[fitz.Rect]] = None
+    ) -> Tuple[str, Dict[str, float]]:
+        """This page's text in reading order (see _page_rows), one line per
+        visual row, with sentinels spliced in front of question-number and
+        sub-part markers for papers that number questions "1", "2" with
+        "(a)"/"(i)" sub-parts rather than the zero-padded "01"/"01.1" scheme
+        (see _splice_row_markers). Also returns {dotted_path: y0} for every
+        marker found here (e.g. "1.c.i"), so images can later be matched to
+        questions by vertical position.
 
-        return [blocks[i] for _, members in row_list for i in members]
+        `path_state` ([path, last_num, marker_x0]) is carried across pages —
+        and across "Extract More" batches — by the caller, so a sub-part on
+        a later page still resolves its full path ("1.c.i") and the
+        sequential fallback knows which number comes next.
 
-    def _build_page_text_with_markers(self, page, path_state: list) -> Tuple[str, Dict[str, float]]:
-        """Reconstruct this page's plain text, normalized into reading order
-        (see _sort_blocks_reading_order — this can differ from page.get_text()
-        for a PDF whose content stream order doesn't match its visual layout),
-        while splicing sentinels in front of bold question-number and sub-part markers,
-        for papers that number questions with plain integers ('1', '2', ...) and
-        letter/roman sub-parts ('(a)', '(i)') instead of CAIE's zero-padded
-        '01'/'01.1' scheme. Also returns {dotted_path: y0} for every marker found
-        on this page (e.g. "1.c.i"), so images can later be matched by vertical
-        position the same way the official format already is.
-
-        Boldness is what separates a real marker from a lookalike that isn't one:
-        a stray digit (graph axis label, mark total) or a "(a)/(b)" that's part
-        of ordinary prose (e.g. a dichotomous classification key) shares the same
-        shape but is set in a regular weight, while the genuine markers are bold.
-        Segmentation later falls back to splitting on these sentinels only when
-        the official zero-padded pattern finds nothing, so this is a no-op for
-        official-format papers beyond leaving harmless sentinels for clean_text
-        to strip.
-
-        `path_state` is a mutable single-element list ([[...]]) holding the
-        current dotted path, carried across pages in document order by the
-        caller so a sub-part marker here can resolve its full path even when
-        its top-level number was set on an earlier page.
-        """
-        out = []
+        `region_rects` is this page's detected image/graph regions, used to
+        tell a real question number alone on its row from a graph's axis tick
+        (see _maybe_sequential_qstart)."""
         q_y: Dict[str, float] = {}
         page_height = page.rect.height
-        page_width = page.rect.width
 
         # A table's cell text (e.g. a grid of MC options like "A carbon
         # oxygen nitrogen B hydrogen carbon oxygen...") reads exactly like a
@@ -303,48 +689,54 @@ class PDFProcessor:
         # tends to parse it as such — producing garbled multi-word "options"
         # instead of recognizing a table that belongs in an attached image
         # (already captured separately; see _collect_region_rects). Replace
-        # each table's text with a one-time placeholder instead of leaving
-        # the raw cell text for the AI to misinterpret.
+        # each table's text with a one-time placeholder instead.
         table_rects = self._find_table_rects(page)
         tables_announced = set()
 
-        for block in self._sort_blocks_reading_order(page.get_text("blocks")):
-            block_text = block[4]
-            rect = fitz.Rect(block[:4])
-            table_idx = next(
-                (
-                    i for i, trect in enumerate(table_rects)
-                    if not (rect & trect).is_empty
-                    and (rect & trect).get_area() / max(rect.get_area(), 1) > 0.6
-                ),
-                None,
-            )
+        native_rows = self._page_rows(page)
+        ocr_rows = self._ocr_image_rows(page, page_num)
+        # On a page whose questions are real text, an OCR'd image is a figure
+        # (labels, axis numbers) — keep its words, but don't let a "2" or an
+        # "(a)" inside it start a question. Only on a page that's essentially
+        # all image (a scan, or screenshots with just a number beside each)
+        # is OCR'd text where the question structure actually lives.
+        native_words = sum(
+            len(re.findall(r"[A-Za-z]{3,}", r["text"])) for r in native_rows if r["y0"] > 40
+        )
+        if native_words >= self._NATIVE_TEXT_PAGE_WORDS:
+            for r in ocr_rows:
+                r["no_markers"] = True
+        rows = native_rows + ocr_rows
+        rows.sort(key=lambda r: r["y0"])
+        # A question number printed as real text beside a screenshot of its
+        # question sits level with the screenshot's first OCR'd line, a hair
+        # above or below it — on a shared row, left comes first.
+        for i in range(len(rows) - 1):
+            a, b = rows[i], rows[i + 1]
+            overlap = min(a["bbox"].y1, b["bbox"].y1) - max(a["bbox"].y0, b["bbox"].y0)
+            if overlap > self._ROW_OVERLAP * min(a["bbox"].height, b["bbox"].height) and b["x0"] < a["x0"]:
+                rows[i], rows[i + 1] = b, a
+
+        out = []
+        for row in rows:
+            center = fitz.Point((row["bbox"].x0 + row["bbox"].x1) / 2, (row["bbox"].y0 + row["bbox"].y1) / 2)
+            table_idx = next((i for i, t in enumerate(table_rects) if center in t), None)
             if table_idx is not None:
                 if table_idx not in tables_announced:
                     tables_announced.add(table_idx)
-                    out.append("[table — see attached image]\n")
+                    out.append("[table — see attached image]")
                 continue
 
-            lines = block_text.split("\n")
-            dict_lines = [
-                line for d_block in page.get_text("dict", clip=rect)["blocks"]
-                for line in d_block.get("lines", [])
-            ]
-            non_empty_count = sum(1 for l in lines if l.strip())
-            can_check_bold = non_empty_count == len(dict_lines)
-
-            rebuilt_lines = []
-            dict_idx = 0
-            for line in lines:
-                if line.strip():
-                    dline = dict_lines[dict_idx] if can_check_bold else None
-                    dict_idx += 1
-                    line, labels = self._splice_line_marker(line, dline, path_state, page_height)
-                    for label, y0 in labels:
-                        q_y.setdefault(label, y0)
-                rebuilt_lines.append(line)
-            out.append("\n".join(rebuilt_lines))
-        return "".join(out), q_y
+            text = row["text"]
+            if row["y0"] <= page_height - self._FOOTER_MARGIN and not row.get("no_markers"):
+                text, labels = self._splice_row_markers(
+                    text, path_state, row["y0"], x0=row["x0"], bold=row["bold"],
+                    strict_trailing=not row.get("ocr"), region_rects=region_rects,
+                )
+                for label, y0 in labels:
+                    q_y.setdefault(label, y0)
+            out.append(text)
+        return "\n".join(out) + "\n", q_y
 
     # How close to the page's bottom edge counts as a running footer (e.g. a
     # page number) rather than page content. Chosen with margin above a real
@@ -355,31 +747,186 @@ class PDFProcessor:
     # cost more (silently dropping real questions) than it defends against.
     _FOOTER_MARGIN = 70
 
-    def _splice_line_marker(
-        self, line: str, dline: Optional[dict], path_state: list, page_height: Optional[float] = None
+    # How far a candidate bare-number marker's left edge may drift from this
+    # document's established question-number column (see _match_top_level_marker)
+    # before it's treated as inline furniture rather than a real marker.
+    # Observed real markers land within ~1pt of each other across pages of
+    # the same document; an observed false positive (a chemical formula's
+    # subscript count) sat 44pt further right. 20pt sits well clear of both.
+    _MARKER_X0_TOLERANCE = 20
+
+    def _splice_row_markers(
+        self,
+        text: str,
+        path_state: list,
+        y0: float,
+        x0: Optional[float] = None,
+        bold: bool = False,
+        strict_trailing: bool = True,
+        region_rects: Optional[List[fitz.Rect]] = None,
     ) -> Tuple[str, List[Tuple[str, float]]]:
-        if dline is None or not dline["spans"]:
+        """Splice sentinels in front of the markers opening one row of text:
+        a question number, then any sub-part labels right after it on the
+        same row ("1 (c) (i) Name the..."), or sub-part labels alone.
+
+        A bold question number is trusted outright. A plain-weight one goes
+        through _maybe_sequential_qstart's guards instead — some papers don't
+        bold their numbers at all, or only some of them. Sub-part labels are
+        only taken from a bold row, or right after a question number: a
+        plain "(a)" opening a row is usually prose (a classification key's
+        "(a) has legs") rather than a sub-part. `strict_trailing=False` is
+        for OCR'd text, which has no font information at all, so there every
+        row is treated as potentially a marker row (see _ocr_image_rows)."""
+        lead_ws = text[: len(text) - len(text.lstrip())]
+        rest = text.lstrip()
+
+        if bold:
+            head, labels = self._match_top_level_marker(rest, path_state, y0, x0)
+        else:
+            head, labels = self._maybe_sequential_qstart(
+                rest, path_state, y0, strict_trailing=strict_trailing, x0=x0, region_rects=region_rects
+            )
+
+        repeated_number = False
+        if not labels and path_state[1] is not None:
+            # A screenshot of a question often includes its own number, which
+            # duplicates the number printed as real text beside it ("2" then
+            # "2 (a) (i) State the meaning..."): skip the repeat, keep the labels.
+            # OCR often misreads that repeat ("9" as "Q", "17" as "7"), so for
+            # OCR'd text any short token will do — except an MC option letter
+            # ("A (i) only").
+            number = rf"{path_state[1]}\.?" if strict_trailing else r"(?![A-D]\b)[^\s(]{1,3}"
+            m = re.match(rf"{number}[ \t]+(?=\()", rest)
+            if m:
+                rest = rest[m.end():]
+                repeated_number = True
+
+        if labels:
+            m = re.match(r"(<<<QSTART_\w+>>>\d+)[ \t]*(.*)", head, re.S)
+            tail, sub_labels = self._match_subpart_marker(m.group(2), path_state, y0)
+            return f"{lead_ws}{m.group(1)}\n{tail}".rstrip(), labels + sub_labels
+        if bold or not strict_trailing or repeated_number:
+            spliced, sub_labels = self._match_subpart_marker(rest, path_state, y0)
+            return f"{lead_ws}{spliced}", sub_labels
+        return text, []
+
+    def _maybe_sequential_qstart(
+        self,
+        line: str,
+        path_state: list,
+        y0: float,
+        strict_trailing: bool = True,
+        x0: Optional[float] = None,
+        region_rects: Optional[List[fitz.Rect]] = None,
+    ) -> Tuple[str, List[Tuple[str, float]]]:
+        """A non-bold line can still be trusted as a genuine top-level
+        question marker when the number it starts with exactly continues the
+        sequence from the last confirmed question (or is "1", bootstrapping
+        the very first one) — real question numbers always increment by
+        exactly 1, so a coincidental false positive (an axis label, a mark
+        total) landing on precisely the right next integer is unlikely,
+        especially stacked on top of the gap filter in
+        _segment_bare_numbered_questions, which independently rejects a
+        tightly-packed run of digits (an answer-choice box) regardless of how
+        each one got flagged. This recovers documents seen in practice where
+        only SOME question numbers happen to be bold — e.g. a 13-question
+        paper where just one number was bold and the rest were plain weight,
+        which left every question but that one undetected. Deliberately
+        narrower than the bold path: no sub-part (letter/roman) matching
+        here, since a lettered sub-part has no comparably strong signal to
+        lean on without a font cue, and no "(a)" shape is nearly as prone to
+        coincidental collision as a bare digit anyway.
+
+        `strict_trailing` controls whether a *continuation* (not the
+        bootstrap) is required to have real same-line word content, not just
+        a non-punctuation remainder. True (real PDF text) rules out a bare
+        axis-tick value sitting alone on its own line — a real document was
+        found where this costs something real: question numbers consistently
+        alone on their own line, stem wrapping to the next line/block below.
+        A same-line word is still accepted outright when present; lacking
+        one, `region_rects` (this page's already-detected image/graph
+        regions) breaks the tie — a number inside one of them is almost
+        certainly a chart's own axis tick, while a number nowhere near any
+        detected region has nothing else it could plausibly be. `x0`/`y0`
+        together place the line for that containment check; `region_rects`
+        left as None (as opposed to an empty list, meaning "checked, no
+        regions on this page") keeps the old, stricter reject-outright
+        behavior for any caller that hasn't been taught to supply it. False
+        (OCR, which has no font info at all and frequently isolates even a
+        genuine number as its own detected line, with the real question text
+        landing on the next one) would otherwise reject real continuations —
+        OCR accepts a bit more false-positive risk here in exchange, and
+        ignores region_rects entirely since strict_trailing already short-
+        circuits past the check that uses it.
+        """
+        rest = line.lstrip()
+        m = self._BARE_QNUM_RE.match(rest.rstrip())
+        if not m:
             return line, []
-        if page_height is not None:
-            y0 = dline["bbox"][1]
-            if y0 > page_height - self._FOOTER_MARGIN:
-                # A running footer (e.g. a page number) repeats at the
-                # same position on every page — unlike a real question marker,
-                # which is page content, not page furniture.
-                return line, []
-        if "bold" not in dline["spans"][0]["font"].lower():
+        num = int(m.group(1))
+        last_num = path_state[1]
+        is_bootstrap = last_num is None and num == 1
+        if not is_bootstrap and (last_num is None or num != last_num + 1):
             return line, []
 
-        y0 = dline["bbox"][1]  # still needed below even if page_height was None above
+        trailing = rest[m.end():].strip()
+        # A blank line for a written-in answer ("State two features: 1 ....
+        # 2 ....") has exactly this shape too — reject when what follows is
+        # nothing but dots/underscores filling space to write in, regardless
+        # of bootstrap-vs-continuation or strictness.
+        if trailing and re.fullmatch(r"[.…_\-\s]*", trailing):
+            return line, []
+        if not is_bootstrap and strict_trailing and not re.search(r"[A-Za-z]{2,}", trailing):
+            if region_rects is None or x0 is None:
+                return line, []
+            in_region = any(
+                rect.x0 <= x0 <= rect.x1 and rect.y0 <= y0 <= rect.y1
+                for rect in region_rects
+            )
+            if in_region:
+                return line, []
+            # A real question number sits in a consistent left-hand column
+            # page after page — once a bold marker has established where
+            # that column is (see _match_top_level_marker), a same-shaped digit
+            # sitting well off to the side of it (e.g. a chemical formula's
+            # subscript count, inline mid-sentence) is furniture, not a
+            # marker, even with no image region to blame it on.
+            established_x0 = path_state[2] if len(path_state) > 2 else None
+            if established_x0 is not None and abs(x0 - established_x0) > self._MARKER_X0_TOLERANCE:
+                return line, []
+
+        lead_ws = line[: len(line) - len(line.lstrip())]
+        path_state[0] = [m.group(1)]
+        path_state[1] = num
+        return f"{lead_ws}<<<QSTART_{m.group(1)}>>>{rest}", [(m.group(1), y0)]
+
+    def _match_top_level_marker(
+        self, line: str, path_state: list, y0: float, x0: Optional[float] = None
+    ) -> Tuple[str, List[Tuple[str, float]]]:
+        """A bold question number opening `line`, trusted outright. Returns
+        the line with a QSTART sentinel spliced in front, or unchanged with
+        no labels if it doesn't open with a number."""
+        m = self._BARE_QNUM_RE.match(line)
+        if not m:
+            return line, []
+        path_state[0] = [m.group(1)]
+        path_state[1] = int(m.group(1))
+        # A bold, trusted marker is the best evidence of where this
+        # document's question numbers sit horizontally — record it (once)
+        # for _maybe_sequential_qstart to check plain-weight candidates against.
+        if len(path_state) > 2 and path_state[2] is None and x0 is not None:
+            path_state[2] = x0
+        return f"<<<QSTART_{m.group(1)}>>>{line}", [(m.group(1), y0)]
+
+    def _match_subpart_marker(
+        self, line: str, path_state: list, y0: float
+    ) -> Tuple[str, List[Tuple[str, float]]]:
+        """Letter/roman sub-part labels opening `line` (no question-number
+        check) — see _splice_row_markers, which calls this both after a
+        question number and on rows that don't open with one."""
         lead_ws = line[: len(line) - len(line.lstrip())]
         rest = line.lstrip()
         labels: List[Tuple[str, float]] = []
-
-        m = self._BARE_QNUM_RE.match(rest.rstrip())
-        if m:
-            path_state[0] = [m.group(1)]
-            labels.append((m.group(1), y0))
-            return f"{lead_ws}<<<QSTART_{m.group(1)}>>>{rest}", labels
 
         # A letter and roman marker can share one line (e.g. "(a) (i) Name the
         # group..." when (a) has no text of its own), so strip them off in a
@@ -399,7 +946,11 @@ class PDFProcessor:
             if m:
                 if not path_state[0]:
                     break
-                path_state[0] = path_state[0][:2] + [m.group(1).lower()]
+                # Nest under the current letter if there is one; a roman with
+                # no letter above it (or whose letter OCR missed) sits
+                # directly under the question number.
+                base = path_state[0][:2] if len(path_state[0]) > 1 and re.fullmatch(r"[a-h]", path_state[0][1]) else path_state[0][:1]
+                path_state[0] = base + [m.group(1).lower()]
                 labels.append((".".join(path_state[0]), y0))
                 sentinels += f"<<<SUBROMAN_{m.group(1).lower()}>>>"
                 rest = re.sub(r"^\([ivxIVX]{1,4}\)[ \t]*", "", rest, count=1)
@@ -443,8 +994,13 @@ class PDFProcessor:
                 best_label = m.group(1)  # e.g. "2.2"
         return best_label
 
-    def _extract_page_images(self, doc, page, page_num: int) -> List[tuple]:
-        """Return (fitz.Rect, path, fig_label) tuples for all images, tables, and boxes on the page."""
+    def _extract_page_images(
+        self, doc, page, page_num: int, region_rects: Optional[List[fitz.Rect]] = None
+    ) -> List[tuple]:
+        """Return (fitz.Rect, path, fig_label) tuples for all images, tables, and boxes on the page.
+        `region_rects`, if the caller already has this page's _collect_region_rects
+        result (e.g. _extract_text, which also needs it for marker detection),
+        is reused instead of recomputing it here."""
         images_dir = os.path.join(os.path.dirname(__file__), "images")
         os.makedirs(images_dir, exist_ok=True)
         seen_rects = []
@@ -476,7 +1032,9 @@ class PDFProcessor:
             candidates.append((rect, "raster", xref))
 
         # Vector regions: word banks, tables, bordered diagrams
-        for rect in self._collect_region_rects(page, page_num):
+        if region_rects is None:
+            region_rects = self._collect_region_rects(page, page_num)
+        for rect in region_rects:
             # Deduplicate against raster images and previously collected vector regions
             is_dup = False
             for seen in seen_rects:
@@ -645,7 +1203,25 @@ class PDFProcessor:
             and not d["rect"].is_empty and not d["rect"].is_infinite
         ]
         for cluster in self._cluster_rects(thin_rects, pad=4):
-            if len(cluster) < 10:  # a handful of stray strokes isn't a graph
+            # A small diagram built from few, simple sub-paths (e.g. one
+            # Lewis structure in a multi-option grid, whose symmetric dot
+            # pairs sometimes collapse into fewer paths than a neighbouring
+            # option's) can legitimately land as low as ~8 strokes — lower
+            # than 10 risked dropping real, complete diagrams while still
+            # rejecting the true noise case (a stray underline or a couple
+            # of decorative strokes, typically 1-5 paths).
+            if len(cluster) < 6:
+                continue
+            # An answer tick-box (a bare rectangle outline, no content) is
+            # rendered by some documents as ~9 thin fill strips tracing its
+            # 4 edges and corners, each a sliver in one dimension — clearing
+            # the lowered stroke-count floor above without being a figure at
+            # all. Real diagram content (an electron-dot blob, a shaded
+            # illustration fill, an arrowhead, a labelled box) always has at
+            # least one path with real area in both dimensions; a cluster
+            # built entirely of slivers never does, so require one such path
+            # before treating the cluster as a figure.
+            if not any(min(r.width, r.height) >= 3 for r in cluster):
                 continue
             union = cluster[0]
             for rect in cluster[1:]:
@@ -654,9 +1230,20 @@ class PDFProcessor:
             # required to span 20% of the page width — a portrait-oriented
             # illustration (e.g. one species in a multi-species grid) can be
             # well under 120pt wide while still being a complete, legitimate
-            # figure. The >=10-stroke requirement already rules out noise;
+            # figure. The >=6-stroke requirement already rules out noise;
             # this is just a sanity floor against a stray fleck.
             if union.width < 20 or union.height < 20:
+                continue
+            # A decorative full-page background panel (a fill-only box
+            # behind the whole text column, plus a few bullet-highlight
+            # strips) is built from just enough paths to clear the floor
+            # above once it's lowered to catch small diagrams, and its
+            # paths all touch/overlap so they cluster as one "figure"
+            # spanning nearly the entire page. A real figure this large in
+            # both dimensions at once doesn't occur in these documents, so
+            # reject it the same way the table finder already rejects a
+            # whole-page false table merge.
+            if union.width > page_width * 0.8 and union.height > page.rect.height * 0.8:
                 continue
 
             # The bare plotted lines/gridlines don't cover axis numbers, axis
@@ -758,12 +1345,40 @@ class PDFProcessor:
         text = re.sub(r"\bTable\s*\d+", "The table below", text, flags=re.IGNORECASE)
         logger.debug("Replaced non-breaking spaces")
 
-        # Remove calculation answer placeholders (e.g. "Energy = _____ J")
-        # These use "label = blank unit" format and won't match mid-sentence fill blanks
-        text = re.sub(r'\s*[A-Za-z\s]+=\s*[\s_]+\s*[A-Za-z]+(?:\s*$|\s*\n)', '', text)
-        text = re.sub(r'\s*[A-Za-z\s]+=\s*[\s_]+\s*(?:\s*$|\s*\n)', '', text)
-        text = re.sub(r'\s*[A-Za-z\s]+:\s*[\s_]+\s*[A-Za-z]+(?:\s*$|\s*\n)', '', text)
-        text = re.sub(r'\s*[A-Za-z\s]+:\s*[\s_]+\s*(?:\s*$|\s*\n)', '', text)
+        # A line that's nothing but a run of dots (the ruled/dotted space
+        # given for a handwritten answer in open-response questions, e.g.
+        # "....................................................") carries
+        # no content — unlike an underscore blank, it isn't a fill-in gap,
+        # it's just writing space, so drop the whole line rather than
+        # preserving it into the extracted question text. A multi-line
+        # answer sometimes labels each ruled line — a bare "1 ...."/"2 ...."
+        # for a two-part answer, or a short prompt word like "difference
+        # ...." / "similarity ...." in a compare-and-contrast question —
+        # that leading label is part of the same writing-space furniture,
+        # not content the model needs, so it's optional and dropped along
+        # with the dots. Capped at a couple of words (no punctuation inside)
+        # so this can't eat a real sentence that happens to end a line; a
+        # dot run followed by MORE text on the same line (a dot leader in a
+        # table, e.g. "joined by a flap of skin ..... go to 2") still isn't
+        # touched, since the match requires the dots to run to end of line.
+        # A CAIE-style mark allocation ("....[2]") can trail the dots on the
+        # same line — also furniture, not content, so it's optional too.
+        text = re.sub(
+            r"(?m)^[ \t]*(?:\(?[a-zA-Z0-9][a-zA-Z0-9 ]{0,20}\)?[ \t]+)?(?:\.[ \t]*){8,}(?:\[\s*\d+\s*\])?[ \t]*$\n?",
+            "",
+            text,
+        )
+
+        # Remove calculation answer placeholders ("Energy = _____ J", "mass:
+        # .......... g"): a whole row of label, "=" or ":", a real blank to
+        # write in, and optionally a unit. Confined to one row and requiring
+        # an actual blank, so ordinary text with a colon ("An atom of element
+        # Y has:") and the row break before the next question are untouched.
+        text = re.sub(
+            r"(?m)^[ \t]*[A-Za-z][A-Za-z ()]*[=:][ \t]*(?:_{3,}|\.{3,}|…+)[ \t._…]*[A-Za-z0-9/ ³²⁻]*\n?",
+            "",
+            text,
+        )
 
         text = self._preserve_fill_in_blanks(text)
 
@@ -863,20 +1478,53 @@ class PDFProcessor:
 
         return "Short Answer"
 
-    def _segment_questions(self, text: str) -> Tuple[List[Dict], Optional[int]]:
+    def _normalize_padded_numbers(self, text: str, padded: bool = False) -> Tuple[str, bool]:
+        """Zero-padded papers (AQA style "01", "01.1") print each digit of a
+        question number in its own box, which extracts as "0 1 . 1". Join
+        those back up at the start of a row, where question numbers sit.
+        Returns the text and whether it uses this scheme at all — only then
+        are "1 0"/"1 0 . 1" (question 10 onwards) joined too, since in an
+        unpadded paper a row opening "1 0" is ordinary content."""
+        text = re.sub(r"(?m)^([ \t]*)0[ \t]*([1-9])[ \t]*\.[ \t]*(\d{1,2})(?=\s)", r"\g<1>0\2.\3", text)
+        text = re.sub(r"(?m)^([ \t]*)0[ \t]*([1-9])(?=\s)", r"\g<1>0\2", text)
+        padded = padded or bool(re.search(r"(?m)^[ \t]*0[1-9](?:\.\d{1,2})?[ \t]+[A-Za-z(]", text))
+        if padded:
+            text = re.sub(r"(?m)^([ \t]*)([1-3])[ \t]*(\d)[ \t]*\.[ \t]*(\d{1,2})(?=\s)", r"\g<1>\2\3.\4", text)
+            text = re.sub(r"(?m)^([ \t]*)([1-3])[ \t]+(\d)(?=[ \t]+[A-Za-z(])", r"\g<1>\2\3", text)
+        return text, padded
+
+    def _segment_questions(
+        self, text: str, last_num: Optional[int] = None, padded: bool = False
+    ) -> Tuple[List[Dict], Optional[int], bool]:
+        """Split text into question chunks. Returns (chunks, restart_page,
+        padded): whether this is a zero-padded ("01.1") paper, to pass back
+        in as `padded` for the document's next batch along with `last_num`,
+        the last question number confirmed so far — a later batch may hold
+        only question 10 onwards, with no "0X" number to recognise the
+        scheme by, and its sequence check (below) continues from there."""
         logger.info("Segmenting text into question chunks...")
 
-        text = re.sub(r"0\s*(\d)\s*\.\s*(\d)", r"0\1.\2", text)
-        text = re.sub(r"\b0\s*(\d)(?!\.\d)\b", r"0\1", text)
-
-        # (?<![\d.]) keeps "0\d" from matching inside a larger number it's not
-        # actually the start of — a copyright year ("© 2026"), a decimal value
-        # ("0.04%") — both contain a bare "0\d" substring that's otherwise
-        # indistinguishable from a real zero-padded question number. Only
-        # needed on the opening capture: the lookahead's "0\d" is already
-        # preceded by "\n\s*", which can never be a digit or a period.
-        question_pattern = r"(?<![\d.])(0\d(?:\.\d)?[\s\S]*?)(?=\n\s*0\d(?:\.\d)?|\Z)"
-        chunks = re.findall(question_pattern, text)
+        text, padded = self._normalize_padded_numbers(text, padded)
+        # A zero-padded question number opens its row and is followed by the
+        # question's own words (or a sub-part label) — which rules out a page
+        # number on its own row ("35"), a paper code ("0610/11/O/N/24") and
+        # the like, all of which otherwise look the same.
+        marker_re = re.compile(r"(?m)^[ \t]*((?:0[1-9]|[1-3]\d)(?:\.\d{1,2})?)(?=[ \t]+[A-Za-z(])")
+        chunks = []
+        if padded:
+            # A real number only ever moves on to the next question or to a
+            # later part of the current one — anything else opening a row
+            # with the same shape (a graph's "30.0" axis value beside its
+            # label, a "25" in a table) is content, not a question boundary.
+            starts = []
+            top, sub = last_num, None
+            for m in marker_re.finditer(text):
+                t, _, s = m.group(1).partition(".")
+                t, s = int(t), int(s) if s else None
+                if top is None or t == top + 1 or (t == top and s is not None and (sub is None or s > sub)):
+                    starts.append(m.start(1))
+                    top, sub = t, s
+            chunks = [text[a:b] for a, b in zip(starts, starts[1:] + [len(text)])]
 
         logger.info(f"Found {len(chunks)} question chunks using regex pattern")
 
@@ -898,10 +1546,10 @@ class PDFProcessor:
                     f"Found {len(bare_chunks)} question chunks using bare-number fallback "
                     f"(preferred over {len(chunks)} from regex pattern)"
                 )
-                return bare_chunks, restart_page
+                return bare_chunks, restart_page, padded
             if not chunks:
                 logger.info(f"Found {len(bare_chunks)} question chunks using bare-number fallback")
-                return bare_chunks, restart_page
+                return bare_chunks, restart_page, padded
 
         # Build a lookup of character positions to page numbers using markers
         page_positions = []
@@ -922,7 +1570,7 @@ class PDFProcessor:
         search_start = 0
         for raw_chunk in chunks:
             current_chunk = raw_chunk.strip()
-            qnum_match = re.match(r"^(0\d(?:\.\d)?)", current_chunk)
+            qnum_match = re.match(r"^((?:0[1-9]|[1-3]\d)(?:\.\d{1,2})?)", current_chunk)
             qnum = qnum_match.group(1) if qnum_match else None
 
             chunk_pos = text.find(current_chunk[:40], search_start)
@@ -963,7 +1611,7 @@ class PDFProcessor:
             i += 1
 
         logger.info(f"After merging, total question chunks: {len(merged_chunks)}")
-        return merged_chunks, None
+        return merged_chunks, None, padded
 
     def _segment_bare_numbered_questions(self, text: str) -> Tuple[List[Dict], Optional[int]]:
         """Segment a paper that numbers questions with plain integers ('1', '2',
@@ -1012,6 +1660,34 @@ class PDFProcessor:
         # it can't be meaningfully nested without one.
         first_qstart = next(i for i, m in enumerate(matches) if m.group(1) is not None)
         matches = matches[first_qstart:]
+
+        # Two top-level markers in a row sharing the EXACT same number (not a
+        # drop to a smaller one) are almost never a genuine restart — a real
+        # new section restarts at a clearly smaller number, typically back to
+        # 1. An exact repeat instead means the same question got marked
+        # twice: once by noise the non-bold sequential fallback picked up
+        # (a numbered statement in a list, an MC option's own leading digit
+        # with a trailing unit like "4 dm3", a bare digit elsewhere on its
+        # own line with no detected image region nearby to rule it out —
+        # see _maybe_sequential_qstart) and once for real. Collapse any such
+        # run down to its LAST occurrence: the earlier, noise-triggered hit
+        # is what cut the question short, so it's never the one worth
+        # keeping, and treating the pair as a restart would needlessly
+        # truncate the rest of the document at a false alarm.
+        deduped: List = []
+        i = 0
+        while i < len(matches):
+            m = matches[i]
+            if m.group(1) is not None:
+                j = i + 1
+                while j < len(matches) and matches[j].group(1) == m.group(1):
+                    j += 1
+                deduped.append(matches[j - 1])
+                i = j
+            else:
+                deduped.append(m)
+                i += 1
+        matches = deduped
 
         # A paper split into separate sections (e.g. "Easy Questions 1, 2,
         # 3...", then "Medium Questions 1, 2, 3...") restarts its numbering

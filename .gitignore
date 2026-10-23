@@ -8,3 +8,4 @@ backend/images/
 backend/uploads/
 backend/pdf_processor.log
 *.pyc
+backend/tests/fixtures/*.pdf
